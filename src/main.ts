@@ -6,4 +6,4 @@ import { Oscilloscope } from './Oscilloscope';
 console.log('Oscilloscope starting...');
 
 const oscilloscope = new Oscilloscope();
-oscilloscope.initialize();
+oscilloscope.initialize();  
