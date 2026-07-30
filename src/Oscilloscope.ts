@@ -11,6 +11,7 @@ import { Toolbar } from './ui/Toolbar';
 import { Resizer } from './ui/Resizer';
 import { Layout } from './ui/Layout';
 import { SignalGenModal } from './ui/SignalGenModal';
+import { WebSerialModal } from './ui/WebSerialModal';
 import { Renderer } from './graphics/Renderer';
 import { PixiView } from './graphics/PixiView';
 
@@ -29,6 +30,7 @@ export class Oscilloscope {
     private isRunning: boolean = false;
     private lastFrameTime: number = 0;
     private signalGenModal!: SignalGenModal;
+    private webSerialModal!: WebSerialModal;
 
     constructor() {
         this.settings = new Settings();
@@ -65,8 +67,14 @@ export class Oscilloscope {
             this.setChannels(newChannels);
         });
 
+        this.webSerialModal = new WebSerialModal(this.serial);
+
         this.toolbar.onOpenGeneratorModal(() => {
             this.signalGenModal.open();
+        });
+
+        this.toolbar.onOpenWebSerialModal(() => {
+            this.webSerialModal.open();
         });
 
         this.toolbar.onPresetChange((presetId) => {

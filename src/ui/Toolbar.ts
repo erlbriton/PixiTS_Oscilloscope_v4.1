@@ -24,6 +24,7 @@ export class Toolbar {
 
     private onPresetChangeCallback?: (presetId: string) => void;
     private onOpenGeneratorModalCallback?: () => void;
+    private onOpenWebSerialModalCallback?: () => void;
 
     constructor(
         container: HTMLElement,
@@ -43,6 +44,10 @@ export class Toolbar {
 
     public onOpenGeneratorModal(cb: () => void): void {
         this.onOpenGeneratorModalCallback = cb;
+    }
+
+    public onOpenWebSerialModal(cb: () => void): void {
+        this.onOpenWebSerialModalCallback = cb;
     }
 
     public initialize(): void {
@@ -190,9 +195,19 @@ export class Toolbar {
     private async handleConnectClick(): Promise<void> {
         if (this.serial.getState() === 'connected') {
             await this.serial.disconnect();
-        } else {
-            const baud = parseInt(this.baudSelect.value, 10);
-            await this.serial.connect(baud);
+            return;
+        }
+
+        const isIframe = window.self !== window.top;
+        if (isIframe && this.onOpenWebSerialModalCallback) {
+            this.onOpenWebSerialModalCallback();
+            return;
+        }
+
+        const baud = parseInt(this.baudSelect.value, 10);
+        const success = await this.serial.connect(baud);
+        if (!success && this.onOpenWebSerialModalCallback) {
+            this.onOpenWebSerialModalCallback();
         }
     }
 

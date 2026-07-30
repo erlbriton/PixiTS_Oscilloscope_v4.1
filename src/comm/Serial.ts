@@ -63,22 +63,24 @@ export class Serial {
     public async connect(baudRate: number = 115200): Promise<boolean> {
         this.baudRate = baudRate;
         if (!this.isWebSerialSupported()) {
-            this.setState('simulating', 'Web Serial API is not supported in this browser environment. Using Signal Simulator.');
+            const msg = 'Web Serial API не поддерживается вашим браузером. Используйте Google Chrome, Microsoft Edge или Opera.';
+            this.setState('simulating', msg);
             return false;
         }
 
         try {
-            this.setState('connecting', 'Requesting serial port permission...');
+            this.setState('connecting', 'Выбор COM-порта в системе...');
             const navSerial = (navigator as any).serial;
             this.port = await navSerial.requestPort();
             await this.port.open({ baudRate: this.baudRate });
 
-            this.setState('connected', `Connected via Serial Port @ ${this.baudRate} baud.`);
+            this.setState('connected', `Подключено к COM-порту @ ${this.baudRate} baud`);
             this.startReading();
             return true;
         } catch (err: any) {
             console.warn('Web Serial connection failed or cancelled:', err);
-            this.setState('simulating', `Serial port connection not established (${err.message || 'Cancelled'}). Using Simulator.`);
+            let errMsg = err.message || 'Отменено пользователем';
+            this.setState('simulating', `COM-порт не подключен (${errMsg}). Включен симулятор.`);
             return false;
         }
     }
@@ -127,17 +129,46 @@ export class Serial {
     }
 
     private rxBuffer: number[] = [];
+    private asciiTextBuffer: string = '';
+
     private processIncomingBytes(data: Uint8Array): void {
+        const now = Date.now();
+
+        // 1. Try ASCII string line parsing (e.g., "12.5, 3.14, 0.8\n" from Arduino/STM32/ESP32)
+        const textChunk = new TextDecoder().decode(data);
+        this.asciiTextBuffer += textChunk;
+
+        if (this.asciiTextBuffer.includes('\n')) {
+            const lines = this.asciiTextBuffer.split('\n');
+            this.asciiTextBuffer = lines.pop() || ''; // Keep incomplete tail
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                // Parse numbers separated by commas, spaces, tabs, or colons (e.g. "CH1: 12.5, CH2: 3.2")
+                const matches = trimmed.match(/-?\d+(?:\.\d+)?/g);
+                if (matches && matches.length > 0) {
+                    matches.forEach((strVal, idx) => {
+                        const val = parseFloat(strVal);
+                        if (!isNaN(val) && idx < this.channels.length) {
+                            const ch = this.channels[idx];
+                            ch.setValue(val);
+                            this.archive.addSample(ch.id, now, val);
+                        }
+                    });
+                }
+            }
+        }
+
+        // 2. Accumulate raw bytes for Modbus RTU frame parsing
         for (let i = 0; i < data.length; i++) {
             this.rxBuffer.push(data[i]);
         }
 
-        // Try parsing Modbus RTU frames or line-delimited ASCII values
         if (this.rxBuffer.length >= 7) {
             const buf = new Uint8Array(this.rxBuffer);
             const modbusRes = Modbus.parseReadResponse(buf);
             if (modbusRes) {
-                const now = Date.now();
                 modbusRes.registers.forEach((regValue, idx) => {
                     if (idx < this.channels.length) {
                         const ch = this.channels[idx];
@@ -150,7 +181,7 @@ export class Serial {
             }
         }
 
-        // Keep buffer trimmed
+        // Prevent infinite buffer growth
         if (this.rxBuffer.length > 512) {
             this.rxBuffer = this.rxBuffer.slice(-256);
         }
