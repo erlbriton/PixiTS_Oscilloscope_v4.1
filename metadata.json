@@ -1,0 +1,6 @@
+{
+  "name": "Web Serial & PixiJS Oscilloscope",
+  "description": "Real-time Web Serial and PixiJS signal oscilloscope and channel adjuster with multi-channel rendering, Modbus RTU, ring buffer archive, and interactive cursors.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
