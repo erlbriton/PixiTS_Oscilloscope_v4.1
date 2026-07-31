@@ -33,10 +33,13 @@ export class ToolbarComponents {
         return select;
     }
 
-    public static createButton(label: string, className: string, onClick: () => void): HTMLButtonElement {
+    public static createButton(label: string, className: string, onClick: () => void, title?: string): HTMLButtonElement {
         const btn = document.createElement('button');
         btn.className = `toolbar-btn ${className}`.trim();
         btn.innerHTML = label;
+        if (title) {
+            btn.title = title;
+        }
         btn.addEventListener('click', onClick);
         return btn;
     }

@@ -14,6 +14,7 @@ import { IniPanel, IniFileItem } from './ui/IniPanel';
 import { Renderer } from './graphics/Renderer';
 import { PixiView } from './graphics/PixiView';
 import { IniParser, ParsedRamParam } from './core/IniParser';
+import { PropertiesModal } from './ui/PropertiesModal';
 
 export class Oscilloscope {
     private settings: Settings;
@@ -26,11 +27,13 @@ export class Oscilloscope {
     private renderer!: Renderer;
     private iniPanel!: IniPanel;
 
-    private channels: Channel[] = [];
+    private allChannels: Channel[] = [];
+    private visibleChannels: Channel[] = [];
     private pixiViews: Map<string, PixiView> = new Map();
     private isRunning: boolean = false;
     private lastFrameTime: number = 0;
     private webSerialModal!: WebSerialModal;
+    private propertiesModal!: PropertiesModal;
 
     constructor() {
         this.settings = new Settings();
@@ -55,6 +58,7 @@ export class Oscilloscope {
 
         this.webSerialModal = new WebSerialModal(this.serial);
         this.iniPanel = new IniPanel(layoutElements.iniPanelContainer);
+        this.propertiesModal = new PropertiesModal();
         
         this.bindEvents();
 
@@ -66,6 +70,11 @@ export class Oscilloscope {
     private bindEvents(): void {
         this.toolbar.onOpenGeneratorModal(() => this.iniPanel.openFilePicker());
         this.toolbar.onOpenWebSerialModal(() => this.webSerialModal.open());
+        this.toolbar.onOpenProperties(() => this.propertiesModal.open(this.allChannels, this.visibleChannels));
+
+        this.propertiesModal.onApply((newVisible) => {
+            this.updateVisibleChannels(newVisible);
+        });
 
         this.serial.onStateChange((state, msg) => {
             if (state === 'error') {
@@ -86,7 +95,7 @@ export class Oscilloscope {
         });
 
         window.addEventListener('oscilloscope-export-csv', () => {
-            this.recorder.downloadCSV(this.channels);
+            this.recorder.downloadCSV(this.visibleChannels);
         });
     }
 
@@ -126,20 +135,33 @@ export class Oscilloscope {
     }
 
     public async setChannels(newChannels: Channel[]): Promise<void> {
-        // Очищаем старые ресурсы
+        this.allChannels = newChannels;
+        this.visibleChannels = [...newChannels];
+        this.archive.clear();
+        this.serial.setChannels(this.allChannels);
+
+        await this.renderVisibleChannels();
+    }
+
+    public async updateVisibleChannels(newVisibleChannels: Channel[]): Promise<void> {
+        this.visibleChannels = newVisibleChannels;
+        await this.renderVisibleChannels();
+    }
+
+    private async renderVisibleChannels(): Promise<void> {
+        // Очищаем старые визуальные представления
         this.pixiViews.forEach(view => view.destroy());
         
         const tempPixiViews: Map<string, PixiView> = new Map();
         this.table.clear();
-        this.archive.clear();
 
-        this.channels = newChannels;
-        this.serial.setChannels(this.channels);
-
-        for (const channel of this.channels) {
+        for (const channel of this.visibleChannels) {
             const row = this.table.addChannel(channel);
             row.onChannelUpdated = (updated) => {
                 if (this.settings.enableCursors) this.updateCursorsFooter();
+            };
+            row.onDelete = (deletedChannel) => {
+                this.updateVisibleChannels(this.visibleChannels.filter(c => c.id !== deletedChannel.id));
             };
             const pixiView = new PixiView(row.getGraphContainer());
             await pixiView.init();
@@ -159,7 +181,7 @@ export class Oscilloscope {
             this.table.updateValues();
             this.toolbar.updateRecordTimer();
 
-            this.channels.forEach(channel => {
+            this.visibleChannels.forEach(channel => {
                 const row = this.table.getRow(channel.id);
                 if (row && !row.getIsVisible()) return;
 

@@ -18,11 +18,13 @@ export class Toolbar {
     private autoscaleBtn!: HTMLButtonElement;
     private cursorBtn!: HTMLButtonElement;
     private generatorBtn!: HTMLButtonElement;
+    private propertiesBtn!: HTMLButtonElement;
     private exportBtn!: HTMLButtonElement;
     private statusBadge!: HTMLSpanElement;
 
     private onOpenGeneratorModalCallback?: () => void;
     private onOpenWebSerialModalCallback?: () => void;
+    private onOpenPropertiesCallback?: () => void;
 
     constructor(
         container: HTMLElement,
@@ -42,6 +44,10 @@ export class Toolbar {
 
     public onOpenWebSerialModal(cb: () => void): void {
         this.onOpenWebSerialModalCallback = cb;
+    }
+
+    public onOpenProperties(cb: () => void): void {
+        this.onOpenPropertiesCallback = cb;
     }
 
     public initialize(): void {
@@ -104,6 +110,15 @@ export class Toolbar {
         const groupRight = document.createElement('div');
         groupRight.className = 'toolbar-group';
 
+        this.propertiesBtn = ToolbarComponents.createButton(
+            `⚙️`,
+            'icon-btn',
+            () => {
+                if (this.onOpenPropertiesCallback) this.onOpenPropertiesCallback();
+            },
+            'Свойства'
+        );
+
         this.recordBtn = ToolbarComponents.createButton('🔴 Record', 'success', () => this.handleRecordClick());
         this.exportBtn = ToolbarComponents.createButton('💾 Export CSV', '', () => {
             window.dispatchEvent(new CustomEvent('oscilloscope-export-csv'));
@@ -113,7 +128,7 @@ export class Toolbar {
         this.statusBadge.className = 'status-badge disconnected';
         this.statusBadge.textContent = 'DISCONNECTED';
 
-        groupRight.append(this.recordBtn, this.exportBtn, this.statusBadge);
+        groupRight.append(this.propertiesBtn, this.recordBtn, this.exportBtn, this.statusBadge);
 
         this.container.append(groupLeft, groupCenter, groupRight);
 
