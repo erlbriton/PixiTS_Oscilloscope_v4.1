@@ -126,6 +126,9 @@ export class Oscilloscope {
         this.toolbar.updateRecordTimer();
 
         this.channels.forEach(channel => {
+            const row = this.table.getRow(channel.id);
+            if (row && !row.getIsVisible()) return;
+
             const view = this.pixiViews.get(channel.id);
             if (view) this.renderer.renderChannelGraph(channel, view);
         });

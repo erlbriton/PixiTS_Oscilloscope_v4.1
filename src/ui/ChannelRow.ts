@@ -1,6 +1,8 @@
 // src/ui/ChannelRow.ts
 
 import { Channel } from '../core/Channel';
+import { ContextMenu } from './ContextMenu';
+import { ChannelPropertiesModal } from './ChannelPropertiesModal';
 
 export class ChannelRow {
     private readonly element: HTMLDivElement;
@@ -10,6 +12,9 @@ export class ChannelRow {
     private readonly unitElement: HTMLDivElement;
     private readonly graphElement: HTMLDivElement;
     private readonly colorIndicator: HTMLSpanElement;
+    private isVisible: boolean = true;
+
+    public onChannelUpdated?: (channel: Channel) => void;
 
     constructor(public readonly channel: Channel) {
         this.element = document.createElement('div');
@@ -69,6 +74,68 @@ export class ChannelRow {
             }
             this.element.classList.add('selected');
         });
+
+        // Обработка ПКМ (Контекстное меню)
+        this.element.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const container = this.element.parentElement;
+            if (container) {
+                container.querySelectorAll('.channel-row.selected').forEach(el => {
+                    if (el !== this.element) el.classList.remove('selected');
+                });
+            }
+            this.element.classList.add('selected');
+
+            ContextMenu.getInstance().show(e.clientX, e.clientY, [
+                {
+                    label: 'Удалить',
+                    danger: true,
+                    icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`,
+                    onClick: () => {
+                        this.setVisible(false);
+                    }
+                },
+                {
+                    label: 'Свойства',
+                    icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+                    onClick: () => {
+                        this.openProperties();
+                    }
+                }
+            ]);
+        });
+    }
+
+    public openProperties(): void {
+        const modal = new ChannelPropertiesModal(this.channel, (updatedChannel, visible) => {
+            this.updateHeaderUI();
+            this.setVisible(visible);
+            if (this.onChannelUpdated) {
+                this.onChannelUpdated(updatedChannel);
+            }
+        });
+        modal.open(this.isVisible);
+    }
+
+    public updateHeaderUI(): void {
+        this.colorIndicator.style.backgroundColor = this.channel.color;
+        const titleSpan = this.nameElement.querySelector('.channel-title');
+        if (titleSpan) {
+            titleSpan.textContent = this.channel.name;
+            titleSpan.setAttribute('title', `${this.channel.name} (${this.channel.description})`);
+        }
+        this.unitElement.textContent = this.channel.unit;
+    }
+
+    public setVisible(visible: boolean): void {
+        this.isVisible = visible;
+        this.element.style.display = visible ? '' : 'none';
+    }
+
+    public getIsVisible(): boolean {
+        return this.isVisible;
     }
 
     public attach(parent: HTMLElement): void {
@@ -82,6 +149,8 @@ export class ChannelRow {
     }
 
     public updateValue(): void {
+        if (!this.isVisible) return;
+
         // Обновляем HEX значение во 2-й колонке
         this.hexElement.textContent = this.channel.hexValue;
 
@@ -102,3 +171,4 @@ export class ChannelRow {
         return this.element;
     }
 }
+
