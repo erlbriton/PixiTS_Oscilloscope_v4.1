@@ -15,7 +15,9 @@ export class Settings {
         unit: 40,
     };
 
-    public rowHeight: number = 20; // height in px of each channel row (по умолчанию 20px)
+    public minRowHeight: number = 25; // minimum line height in px
+    public rowHeight: number = 25; // height in px of each channel row (min 25px)
+    public fontSize: number = 13; // font height/size in px corresponding to 25px row height
     public timeWindowMs: number = 2000; // total duration visible on screen (ms) (2s default)
     public showGrid: boolean = true;
     public gridDivisionsX: number = 10;
@@ -41,8 +43,13 @@ export class Settings {
     }
 
     public setRowHeight(height: number): void {
-        this.rowHeight = Math.max(15, height);
-        document.documentElement.style.setProperty('--row-height', `${this.rowHeight}px`);
+        this.rowHeight = Math.max(this.minRowHeight, height);
+        this.applyCSSTemplateVariables();
+    }
+
+    public setFontSize(size: number): void {
+        this.fontSize = Math.max(11, size);
+        this.applyCSSTemplateVariables();
     }
 
     public applyCSSTemplateVariables(): void {
@@ -51,5 +58,6 @@ export class Settings {
         document.documentElement.style.setProperty('--col-value', `${this.columnWidths.value}px`);
         document.documentElement.style.setProperty('--col-unit', `${this.columnWidths.unit}px`);
         document.documentElement.style.setProperty('--row-height', `${this.rowHeight}px`);
+        document.documentElement.style.setProperty('--font-size', `${this.fontSize}px`);
     }
 }

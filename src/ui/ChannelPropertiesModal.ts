@@ -169,7 +169,7 @@ export class ChannelPropertiesModal {
                 this.channel.customMax = parseFloat(maxInput.value);
             }
             if (heightInput && !isNaN(parseInt(heightInput.value))) {
-                this.channel.rowHeight = Math.max(20, Math.min(600, parseInt(heightInput.value)));
+                this.channel.rowHeight = Math.max(25, Math.min(600, parseInt(heightInput.value)));
             }
             if (autoScaleInput) {
                 this.channel.autoScale = autoScaleInput.checked;

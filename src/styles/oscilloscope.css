@@ -5,7 +5,8 @@
     --col-description: 50px;
     --col-value: 90px;
     --col-unit: 60px;
-    --row-height: 20px;
+    --row-height: 25px;
+    --font-size: 13px;
     --bg-main: #0a0a0b;
     --bg-header: #0f0f11;
     --bg-card: #141416;
@@ -216,7 +217,7 @@ html, body {
 #toolbar {
     height: 48px;
     background-color: #0f0f11;
-    border-bottom: none;
+    border-bottom: 2px solid #4a4a52;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -364,10 +365,10 @@ html, body {
     grid-template-columns:
         var(--col-name)
         var(--col-description)
-        var(--col-unit)
         var(--col-value)
+        var(--col-unit)
         1fr;
-    border-bottom: none;
+    border-bottom: 2px solid #4a4a52;
     background-color: #0f0f11;
     position: relative;
     user-select: none;
@@ -377,7 +378,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-right: none;
+    border-right: 2px solid #4a4a52;
     font-size: 12px;
     font-weight: 700;
     color: #c8f1e0;
@@ -385,6 +386,10 @@ html, body {
     letter-spacing: 0.8px;
     position: relative;
     text-align: center;
+}
+
+#header > div:last-child {
+    border-right: none;
 }
 
 .col-resizer {
@@ -415,8 +420,8 @@ html, body {
     grid-template-columns:
         var(--col-name)
         var(--col-description)
-        var(--col-unit)
         var(--col-value)
+        var(--col-unit)
         1fr;
     height: var(--row-height);
     border-bottom: none;
@@ -454,7 +459,7 @@ html, body {
     display: flex;
     align-items: center;
     border-right: none;
-    font-size: 11px;
+    font-size: var(--font-size, 13px);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     line-height: 1;
 }
@@ -476,7 +481,7 @@ html, body {
 .channel-title {
     font-weight: 700;
     color: #e0e0e0;
-    font-size: 11px;
+    font-size: var(--font-size, 13px);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -487,7 +492,7 @@ html, body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 14px;
+    font-size: calc(var(--font-size, 13px) + 1px);
     justify-content: center;
     text-align: center;
 }
@@ -495,14 +500,28 @@ html, body {
 .col-value {
     color: #00d2ff;
     font-weight: 700;
-    font-size: 11px;
+    font-size: var(--font-size, 13px);
     justify-content: center;
     text-align: center;
 }
 
+.discrete-value-square {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: max(17px, calc(var(--font-size, 13px) + 5px));
+    height: max(17px, calc(var(--font-size, 13px) + 5px));
+    border-radius: 3px;
+    font-weight: 800;
+    font-size: var(--font-size, 13px);
+    line-height: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    user-select: none;
+}
+
 .col-unit {
     color: #b4cff3;
-    font-size: 11px;
+    font-size: var(--font-size, 13px);
     justify-content: center;
     text-align: center;
 }

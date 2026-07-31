@@ -62,7 +62,7 @@ export class Channel {
         this.type = this.isBit ? 'digital' : 'analog';
         this.dataType = config.dataType || (this.isBit ? 'TBit' : 'TWORD');
         this.modbusReg = config.modbusReg || '';
-        this.rowHeight = config.rowHeight || 20;
+        this.rowHeight = Math.max(25, config.rowHeight || 25);
         this.autoScale = config.autoScale !== undefined ? config.autoScale : true;
 
         this.rawDecValue = config.rawDecValue !== undefined ? config.rawDecValue : 0;

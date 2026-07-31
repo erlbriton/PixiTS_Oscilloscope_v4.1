@@ -15,8 +15,8 @@ export class Layout {
                     <div id="header">
                         <div class="col-name">Name</div>
                         <div class="col-description">hex</div>
-                        <div class="col-unit">Unit</div>
                         <div class="col-value">Physical</div>
+                        <div class="col-unit">Unit</div>
                         <div class="col-graph">Graph</div>
                     </div>
                     <div id="channelRows"></div>

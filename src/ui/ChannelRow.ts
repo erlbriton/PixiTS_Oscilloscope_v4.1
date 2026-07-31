@@ -53,7 +53,6 @@ export class ChannelRow {
         // 4. Колонка Physical (Value)
         this.valueElement = document.createElement('div');
         this.valueElement.className = 'col-value';
-        this.valueElement.textContent = String(channel.scaledValue);
 
         // 5. Колонка Graph
         this.graphElement = document.createElement('div');
@@ -62,10 +61,12 @@ export class ChannelRow {
         this.element.append(
             this.nameElement,
             this.hexElement,
-            this.unitElement,
             this.valueElement,
+            this.unitElement,
             this.graphElement
         );
+
+        this.updateValue();
 
         this.element.addEventListener('click', () => {
             const container = this.element.parentElement;
@@ -156,18 +157,38 @@ export class ChannelRow {
         }
     }
 
+    private getContrastColor(hexColor: string): string {
+        if (!hexColor || !hexColor.startsWith('#')) return '#000000';
+        let hex = hexColor.replace('#', '');
+        if (hex.length === 3) {
+            hex = hex.split('').map(c => c + c).join('');
+        }
+        const r = parseInt(hex.substring(0, 2), 16) || 0;
+        const g = parseInt(hex.substring(2, 4), 16) || 0;
+        const b = parseInt(hex.substring(4, 6), 16) || 0;
+        const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+        return yiq >= 128 ? '#0a0a0b' : '#ffffff';
+    }
+
     public updateValue(): void {
         if (!this.isVisible) return;
 
-        // Обновляем HEX значение во 2-й колонке
-        this.hexElement.textContent = this.channel.hexValue;
+        const isDiscrete = this.channel.isBit || this.channel.type === 'digital';
 
-        // Обновляем Десятичное значение * Шкала в 3-й колонке
-        const val = this.channel.scaledValue;
-        if (typeof val === 'number') {
-            this.valueElement.textContent = Number.isInteger(val) ? val.toString() : val.toFixed(3);
+        if (isDiscrete) {
+            const val = this.channel.scaledValue;
+            const displayVal = typeof val === 'number' ? val.toString() : String(val);
+            const textColor = this.getContrastColor(this.channel.color);
+            this.hexElement.innerHTML = `<span class="discrete-value-square" style="background-color: ${this.channel.color}; color: ${textColor};">${displayVal}</span>`;
+            this.valueElement.textContent = '';
         } else {
-            this.valueElement.textContent = String(val);
+            this.hexElement.textContent = this.channel.hexValue;
+            const val = this.channel.scaledValue;
+            if (typeof val === 'number') {
+                this.valueElement.textContent = Number.isInteger(val) ? val.toString() : val.toFixed(3);
+            } else {
+                this.valueElement.textContent = String(val);
+            }
         }
     }
 
