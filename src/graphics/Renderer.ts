@@ -20,10 +20,15 @@ export class Renderer {
         const { width, height } = view.bounds;
         if (width <= 0 || height <= 0) return;
 
-        this.renderGrid(view, width, height);
-
         const now = Date.now();
-        const duration = this.settings.timeWindowMs;
+        // 1 см ≈ 40px. 1 деление маркеров = 1 секунда = 40px.
+        const spacing = 40; 
+        // Длительность отображаемого окна графиков, привязаная к масштабу маркеров (1 сек = 40px)
+        const duration = (width / spacing) * 1000;
+
+        this.renderGrid(view, width, height);
+        this.renderMarkers(view, width, height, now, spacing);
+
         const samples = this.archive.getRecentSamples(channel.id, duration, now);
 
         if (samples.length > 0) {
@@ -91,5 +96,24 @@ export class Renderer {
         g.moveTo(x2, 0);
         g.lineTo(x2, height);
         g.stroke({ width: 1.5, color: 0xf59e0b, alpha: 0.9 });
+    }
+
+    private renderMarkers(view: PixiView, width: number, height: number, now: number, spacing: number): void {
+        const g = view.markerGraphics;
+        g.clear();
+
+        // Время смещения в пикселях: за 1 секунду (1000 мс) линии продвигаются на `spacing` (40px) влево
+        const secPx = (now / 1000) * spacing;
+        const offset = (spacing - (secPx % spacing)) % spacing;
+
+        // Однородные вертикальные линии маркеров единого цвета
+        for (let x = offset; x <= width; x += spacing) {
+            if (x >= 0) {
+                const roundedX = Math.round(x);
+                g.moveTo(roundedX, 0);
+                g.lineTo(roundedX, height);
+                g.stroke({ width: 1, color: '#94a3b8', alpha: 0.5 });
+            }
+        }
     }
 }

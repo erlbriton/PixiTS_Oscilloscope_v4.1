@@ -88,6 +88,7 @@ export class PixiView {
     public ctx: CanvasRenderingContext2D | null = null;
     public gridGraphics: Canvas2DGraphics;
     public waveGraphics: Canvas2DGraphics;
+    public markerGraphics: Canvas2DGraphics;
     public cursorGraphics: Canvas2DGraphics;
     public containerElement: HTMLElement;
     public bounds: ViewportBounds = { width: 300, height: 120 };
@@ -102,6 +103,7 @@ export class PixiView {
 
         this.gridGraphics = new Canvas2DGraphics();
         this.waveGraphics = new Canvas2DGraphics();
+        this.markerGraphics = new Canvas2DGraphics();
         this.cursorGraphics = new Canvas2DGraphics();
     }
 
@@ -144,6 +146,7 @@ export class PixiView {
 
         this.gridGraphics.drawToContext(this.ctx);
         this.waveGraphics.drawToContext(this.ctx);
+        this.markerGraphics.drawToContext(this.ctx);
         this.cursorGraphics.drawToContext(this.ctx);
 
         this.ctx.restore();

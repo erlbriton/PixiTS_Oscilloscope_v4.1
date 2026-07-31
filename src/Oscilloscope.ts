@@ -120,7 +120,6 @@ export class Oscilloscope {
     private loop(now: number): void {
         if (!this.isRunning) return;
 
-        const dtMs = Math.min(100, now - this.lastFrameTime);
         this.lastFrameTime = now;
 
         this.table.updateValues();
