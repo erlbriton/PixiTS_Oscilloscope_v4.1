@@ -1,8 +1,8 @@
 /* src/styles/oscilloscope.css */
 
 :root {
-    --col-name: 90px;
-    --col-description: 220px;
+    --col-name: 100px;
+    --col-description: 50px;
     --col-value: 90px;
     --col-unit: 60px;
     --row-height: 20px;
@@ -48,7 +48,7 @@ html, body {
     display: flex;
     flex-direction: column;
     background-color: var(--bg-main);
-    border-right: 1px solid var(--border-color);
+    border-right: none;
     flex-shrink: 0;
     box-sizing: border-box;
 }
@@ -216,7 +216,7 @@ html, body {
 #toolbar {
     height: 48px;
     background-color: #0f0f11;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: none;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -244,16 +244,18 @@ html, body {
 
 .toolbar-btn {
     height: 32px;
-    padding: 0 12px;
+    min-width: 36px;
+    padding: 0 10px;
     background-color: #1a1a1c;
     border: 1px solid #2a2a2c;
     border-radius: 4px;
     color: #e0e0e0;
-    font-size: 12px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     transition: all 0.15s ease;
 }
@@ -365,7 +367,7 @@ html, body {
         var(--col-unit)
         var(--col-value)
         1fr;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: none;
     background-color: #0f0f11;
     position: relative;
     user-select: none;
@@ -375,10 +377,10 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-right: 1px solid #2a2a2c;
-    font-size: 11px;
+    border-right: none;
+    font-size: 12px;
     font-weight: 700;
-    color: #6a6a6e;
+    color: #c8f1e0;
     text-transform: uppercase;
     letter-spacing: 0.8px;
     position: relative;
@@ -417,7 +419,7 @@ html, body {
         var(--col-value)
         1fr;
     height: var(--row-height);
-    border-bottom: 1px solid #1a1a1c;
+    border-bottom: none;
     transition: height 0.05s linear, background-color 0.15s ease;
     cursor: pointer;
 }
@@ -432,7 +434,7 @@ html, body {
 }
 
 .channel-row.selected .col-graph {
-    background-color: transparent !important;
+    background-color: var(--bg-main) !important;
 }
 
 .channel-row.selected .col-graph::after {
@@ -442,7 +444,7 @@ html, body {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(74, 222, 128, 0.25);
+    background-color: rgba(74, 222, 128, 0.35);
     pointer-events: none;
     z-index: 5;
 }
@@ -451,7 +453,7 @@ html, body {
     padding: 0 6px;
     display: flex;
     align-items: center;
-    border-right: 1px solid #1a1a1c;
+    border-right: none;
     font-size: 11px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     line-height: 1;
@@ -485,7 +487,7 @@ html, body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 11px;
+    font-size: 14px;
     justify-content: center;
     text-align: center;
 }
@@ -499,7 +501,7 @@ html, body {
 }
 
 .col-unit {
-    color: #6a6a6e;
+    color: #b4cff3;
     font-size: 11px;
     justify-content: center;
     text-align: center;
@@ -534,7 +536,7 @@ html, body {
 #footer {
     height: 28px;
     background-color: #0f0f11;
-    border-top: 1px solid var(--border-color);
+    border-top: none;
     display: flex;
     align-items: center;
     justify-content: space-between;

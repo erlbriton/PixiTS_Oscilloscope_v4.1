@@ -51,35 +51,7 @@ export class Renderer {
     }
 
     private renderGrid(view: PixiView, width: number, height: number): void {
-        const g = view.gridGraphics;
-        g.clear();
-
-        if (!this.settings.showGrid) return;
-
-        const gridColor = new Color(this.settings.gridColor).toNumber();
-        const divX = this.settings.gridDivisionsX;
-        const divY = this.settings.gridDivisionsY;
-
-        const stepX = width / divX;
-        for (let i = 1; i < divX; i++) {
-            const x = Math.floor(i * stepX);
-            g.moveTo(x, 0);
-            g.lineTo(x, height);
-            g.stroke({ width: 1, color: gridColor, alpha: 0.4 });
-        }
-
-        const stepY = height / divY;
-        for (let j = 1; j < divY; j++) {
-            const y = Math.floor(j * stepY);
-            g.moveTo(0, y);
-            g.lineTo(width, y);
-            g.stroke({ width: 1, color: gridColor, alpha: 0.4 });
-        }
-
-        const centerY = Math.floor(height / 2);
-        g.moveTo(0, centerY);
-        g.lineTo(width, centerY);
-        g.stroke({ width: 1, color: gridColor, alpha: 0.8 });
+        view.gridGraphics.clear();
     }
 
     private renderCursors(view: PixiView, width: number, height: number): void {

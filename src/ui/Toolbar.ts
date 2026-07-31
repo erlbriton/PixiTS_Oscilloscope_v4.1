@@ -61,8 +61,9 @@ export class Toolbar {
         title.className = 'toolbar-title';
         title.innerHTML = `⚡ PixiTS Oscilloscope v4.1`;
 
-        this.connectBtn = ToolbarComponents.createButton('🔌 Web Serial', 'primary', () => this.handleConnectClick());
+        this.connectBtn = ToolbarComponents.createButton('🔌', 'primary', () => this.handleConnectClick(), 'Подключить Web Serial');
         this.baudSelect = ToolbarComponents.createBaudSelect(115200);
+        this.baudSelect.title = 'Скорость передачи (Baud)';
 
         groupLeft.append(title, this.connectBtn, this.baudSelect);
 
@@ -87,22 +88,23 @@ export class Toolbar {
         this.timebaseSelect = ToolbarComponents.createSelect(timebaseOpts, this.settings.timeWindowMs, (val) => {
             this.settings.timeWindowMs = val;
         });
+        this.timebaseSelect.title = 'Временная шкала (Timebase)';
 
-        this.autoscaleBtn = ToolbarComponents.createButton('📐 Auto-Scale', this.settings.autoScale ? 'active' : '', () => {
+        this.autoscaleBtn = ToolbarComponents.createButton('📐', this.settings.autoScale ? 'active' : '', () => {
             this.settings.autoScale = !this.settings.autoScale;
             this.autoscaleBtn.classList.toggle('active', this.settings.autoScale);
-        });
+        }, 'Автомасштабирование (Auto-Scale)');
 
-        this.cursorBtn = ToolbarComponents.createButton('📏 Cursors', this.settings.enableCursors ? 'active' : '', () => {
+        this.cursorBtn = ToolbarComponents.createButton('📏', this.settings.enableCursors ? 'active' : '', () => {
             this.settings.enableCursors = !this.settings.enableCursors;
             this.cursorBtn.classList.toggle('active', this.settings.enableCursors);
             const footer = document.getElementById('footer');
             if (footer) footer.style.display = this.settings.enableCursors ? 'flex' : 'none';
-        });
+        }, 'Курсоры измерения (Cursors)');
 
-        this.generatorBtn = ToolbarComponents.createButton('📁 Выбрать .ini файлы', 'primary', () => {
+        this.generatorBtn = ToolbarComponents.createButton('📁', 'primary', () => {
             if (this.onOpenGeneratorModalCallback) this.onOpenGeneratorModalCallback();
-        });
+        }, 'Выбрать .ini файлы');
 
         groupCenter.append(timebaseLabel, this.timebaseSelect, this.autoscaleBtn, this.cursorBtn, this.generatorBtn);
 
@@ -116,13 +118,13 @@ export class Toolbar {
             () => {
                 if (this.onOpenPropertiesCallback) this.onOpenPropertiesCallback();
             },
-            'Свойства'
+            'Свойства просмотра параметров'
         );
 
-        this.recordBtn = ToolbarComponents.createButton('🔴 Record', 'success', () => this.handleRecordClick());
-        this.exportBtn = ToolbarComponents.createButton('💾 Export CSV', '', () => {
+        this.recordBtn = ToolbarComponents.createButton('🔴', 'success', () => this.handleRecordClick(), 'Запись в CSV');
+        this.exportBtn = ToolbarComponents.createButton('💾', '', () => {
             window.dispatchEvent(new CustomEvent('oscilloscope-export-csv'));
-        });
+        }, 'Экспорт CSV');
 
         this.statusBadge = document.createElement('span');
         this.statusBadge.className = 'status-badge disconnected';
@@ -136,15 +138,18 @@ export class Toolbar {
             if (state === 'connected') {
                 this.statusBadge.className = 'status-badge connected';
                 this.statusBadge.textContent = 'SERIAL CONNECTED';
-                this.connectBtn.innerHTML = `🔌 Disconnect`;
+                this.connectBtn.innerHTML = `🔌`;
+                this.connectBtn.title = 'Отключить Web Serial';
             } else if (state === 'error') {
                 this.statusBadge.className = 'status-badge disconnected';
                 this.statusBadge.textContent = 'ERROR';
-                this.connectBtn.innerHTML = `🔌 Web Serial`;
+                this.connectBtn.innerHTML = `🔌`;
+                this.connectBtn.title = 'Подключить Web Serial';
             } else {
                 this.statusBadge.className = 'status-badge disconnected';
                 this.statusBadge.textContent = 'DISCONNECTED';
-                this.connectBtn.innerHTML = `🔌 Web Serial`;
+                this.connectBtn.innerHTML = `🔌`;
+                this.connectBtn.title = 'Подключить Web Serial';
             }
         });
     }
@@ -172,14 +177,16 @@ export class Toolbar {
         const state = this.recorder.getState();
         if (state === 'idle') {
             this.recorder.start();
-            this.recordBtn.innerHTML = `⏸️ Recording...`;
+            this.recordBtn.innerHTML = `⏸️`;
+            this.recordBtn.title = 'Остановить запись';
             this.recordBtn.classList.remove('success');
             this.recordBtn.classList.add('primary');
             this.statusBadge.className = 'status-badge recording';
             this.statusBadge.textContent = 'REC 0.0s';
         } else if (state === 'recording') {
             this.recorder.stop();
-            this.recordBtn.innerHTML = `🔴 Record`;
+            this.recordBtn.innerHTML = `🔴`;
+            this.recordBtn.title = 'Запись в CSV';
             this.recordBtn.classList.remove('primary');
             this.recordBtn.classList.add('success');
             this.statusBadge.className = this.serial.getState() === 'connected' ? 'status-badge connected' : 'status-badge disconnected';

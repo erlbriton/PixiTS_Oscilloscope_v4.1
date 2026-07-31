@@ -9,10 +9,10 @@ export interface ColumnWidths {
 
 export class Settings {
     public columnWidths: ColumnWidths = {
-        name: 90,
-        description: 220,
-        value: 90,
-        unit: 60,
+        name: 130,
+        description: 80,
+        value: 70,
+        unit: 40,
     };
 
     public rowHeight: number = 20; // height in px of each channel row (по умолчанию 20px)
