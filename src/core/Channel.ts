@@ -11,6 +11,9 @@ export interface ChannelConfig {
     color?: string;
     min?: number;
     max?: number;
+    customMax?: number;  // Ручной максимум
+    rowHeight?: number;  // Высота строки в px
+    autoScale?: boolean; // Флаг авто масштаба
     type?: 'analog' | 'digital';
     hexValue?: string;
     rawDecValue?: number;
@@ -41,6 +44,9 @@ export class Channel {
     public type: 'analog' | 'digital';
     public dataType: string;
     public scale: number;
+    public customMax: number;
+    public rowHeight: number;
+    public autoScale: boolean;
     public isBit: boolean;
     public modbusReg: string;
     public currentDisplayMin?: number;
@@ -56,6 +62,8 @@ export class Channel {
         this.type = this.isBit ? 'digital' : 'analog';
         this.dataType = config.dataType || (this.isBit ? 'TBit' : 'TWORD');
         this.modbusReg = config.modbusReg || '';
+        this.rowHeight = config.rowHeight || 20;
+        this.autoScale = config.autoScale !== undefined ? config.autoScale : true;
 
         this.rawDecValue = config.rawDecValue !== undefined ? config.rawDecValue : 0;
         this.hexValue = config.hexValue || ('0x' + (this.rawDecValue & 0xFFFF).toString(16).toUpperCase().padStart(4, '0'));
@@ -65,6 +73,7 @@ export class Channel {
         this.color = config.color || PALETTE[(paletteIndex++) % PALETTE.length];
         this.min = config.min !== undefined ? config.min : (this.isBit ? 0 : -50);
         this.max = config.max !== undefined ? config.max : (this.isBit ? 1 : 500);
+        this.customMax = config.customMax !== undefined ? config.customMax : this.max;
     }
 
     public updateRawValue(rawDec: number): void {

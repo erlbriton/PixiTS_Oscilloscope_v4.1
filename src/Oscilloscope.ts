@@ -76,12 +76,12 @@ export class Oscilloscope {
         });
     }
 
-    public loadIniContent(iniContent: string): void {
+    public async loadIniContent(iniContent: string): Promise<void> {
         const parsed = IniParser.parse(iniContent);
-        this.applyParsedRamParams(parsed.ramParams);
+        await this.applyParsedRamParams(parsed.ramParams);
     }
 
-    public applyParsedRamParams(ramParams: ParsedRamParam[]): void {
+    public async applyParsedRamParams(ramParams: ParsedRamParam[]): Promise<void> {
         const newChannels = ramParams.map(param => new Channel({
             id: param.id,
             name: param.name,
@@ -97,24 +97,32 @@ export class Oscilloscope {
             max: param.isBit ? 1 : 500
         }));
 
-        this.setChannels(newChannels);
+        await this.setChannels(newChannels);
     }
 
-    public setChannels(newChannels: Channel[]): void {
+    public async setChannels(newChannels: Channel[]): Promise<void> {
+        // Очищаем старые ресурсы
         this.pixiViews.forEach(view => view.destroy());
-        this.pixiViews.clear();
+        
+        const tempPixiViews: Map<string, PixiView> = new Map();
         this.table.clear();
         this.archive.clear();
 
         this.channels = newChannels;
         this.serial.setChannels(this.channels);
 
-        this.channels.forEach(async (channel) => {
+        for (const channel of this.channels) {
             const row = this.table.addChannel(channel);
+            row.onChannelUpdated = (updated) => {
+                if (this.settings.enableCursors) this.updateCursorsFooter();
+            };
             const pixiView = new PixiView(row.getGraphContainer());
             await pixiView.init();
-            this.pixiViews.set(channel.id, pixiView);
-        });
+            tempPixiViews.set(channel.id, pixiView);
+        }
+
+        // Атомарно подменяем карту представлений
+        this.pixiViews = tempPixiViews;
     }
 
     private loop(now: number): void {
@@ -122,18 +130,28 @@ export class Oscilloscope {
 
         this.lastFrameTime = now;
 
-        this.table.updateValues();
-        this.toolbar.updateRecordTimer();
+        try {
+            this.table.updateValues();
+            this.toolbar.updateRecordTimer();
 
-        this.channels.forEach(channel => {
-            const row = this.table.getRow(channel.id);
-            if (row && !row.getIsVisible()) return;
+            this.channels.forEach(channel => {
+                const row = this.table.getRow(channel.id);
+                if (row && !row.getIsVisible()) return;
 
-            const view = this.pixiViews.get(channel.id);
-            if (view) this.renderer.renderChannelGraph(channel, view);
-        });
+                const view = this.pixiViews.get(channel.id);
+                if (view) {
+                    try {
+                        this.renderer.renderChannelGraph(channel, view);
+                    } catch (renderErr) {
+                        console.error(`Error rendering channel ${channel.id}:`, renderErr);
+                    }
+                }
+            });
 
-        if (this.settings.enableCursors) this.updateCursorsFooter();
+            if (this.settings.enableCursors) this.updateCursorsFooter();
+        } catch (err) {
+            console.error('Oscilloscope loop error:', err);
+        }
 
         requestAnimationFrame((t) => this.loop(t));
     }

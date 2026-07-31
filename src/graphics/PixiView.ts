@@ -13,13 +13,22 @@ export interface StrokeOptions {
 
 export class Canvas2DGraphics {
     private paths: Array<{
-        commands: Array<{ type: 'moveTo' | 'lineTo'; x: number; y: number }>;
+        commands: Array<{ 
+            type: 'moveTo' | 'lineTo' | 'rect'; 
+            x: number; y: number; 
+            width?: number; height?: number; 
+        }>;
         width: number;
         color: number | string;
         alpha: number;
+        fill?: boolean;
     }> = [];
 
-    private currentCommands: Array<{ type: 'moveTo' | 'lineTo'; x: number; y: number }> = [];
+    private currentCommands: Array<{ 
+        type: 'moveTo' | 'lineTo' | 'rect'; 
+        x: number; y: number; 
+        width?: number; height?: number; 
+    }> = [];
 
     public clear(): void {
         this.paths = [];
@@ -34,6 +43,10 @@ export class Canvas2DGraphics {
         this.currentCommands.push({ type: 'lineTo', x, y });
     }
 
+    public rect(x: number, y: number, width: number, height: number): void {
+        this.currentCommands.push({ type: 'rect', x, y, width, height });
+    }
+
     public stroke(options?: StrokeOptions): void {
         if (this.currentCommands.length === 0) return;
         const width = options?.width ?? 1;
@@ -44,7 +57,24 @@ export class Canvas2DGraphics {
             commands: [...this.currentCommands],
             width,
             color,
-            alpha
+            alpha,
+            fill: false
+        });
+        this.currentCommands = [];
+    }
+
+    public fill(options?: StrokeOptions): void {
+        if (this.currentCommands.length === 0) return;
+        const width = options?.width ?? 1;
+        const alpha = options?.alpha ?? 1.0;
+        const color = options?.color ?? '#38bdf8';
+
+        this.paths.push({
+            commands: [...this.currentCommands],
+            width,
+            color,
+            alpha,
+            fill: true
         });
         this.currentCommands = [];
     }
@@ -66,18 +96,29 @@ export class Canvas2DGraphics {
                 ctx.globalAlpha = path.alpha;
             }
 
-            ctx.lineWidth = path.width;
-            ctx.strokeStyle = colorStr;
-            ctx.beginPath();
-
-            for (const cmd of path.commands) {
-                if (cmd.type === 'moveTo') {
-                    ctx.moveTo(cmd.x, cmd.y);
-                } else if (cmd.type === 'lineTo') {
-                    ctx.lineTo(cmd.x, cmd.y);
+            if (path.fill) {
+                ctx.fillStyle = colorStr;
+                for (const cmd of path.commands) {
+                    if (cmd.type === 'rect') {
+                        ctx.fillRect(cmd.x, cmd.y, cmd.width || 0, cmd.height || 0);
+                    }
                 }
+            } else {
+                ctx.lineWidth = path.width;
+                ctx.strokeStyle = colorStr;
+                ctx.beginPath();
+
+                for (const cmd of path.commands) {
+                    if (cmd.type === 'moveTo') {
+                        ctx.moveTo(cmd.x, cmd.y);
+                    } else if (cmd.type === 'lineTo') {
+                        ctx.lineTo(cmd.x, cmd.y);
+                    } else if (cmd.type === 'rect') {
+                        ctx.rect(cmd.x, cmd.y, cmd.width || 0, cmd.height || 0);
+                    }
+                }
+                ctx.stroke();
             }
-            ctx.stroke();
             ctx.restore();
         }
     }

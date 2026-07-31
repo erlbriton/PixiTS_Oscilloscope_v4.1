@@ -19,71 +19,124 @@ export class ChannelPropertiesModal {
 
         const content = document.createElement('div');
         content.className = 'modal-content';
-        content.style.maxWidth = '480px';
+        content.style.maxWidth = '520px';
         content.style.width = '100%';
 
+        const isBit = this.channel.isBit;
+        const disabledAttr = isBit ? 'disabled' : '';
+        const readonlyStyle = isBit ? 'opacity:0.6; cursor:not-allowed;' : '';
+
         content.innerHTML = `
-            <div class="modal-header">
-                <div class="modal-title" style="display:flex; align-items:center; gap:8px;">
-                    <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background-color:${this.channel.color};"></span>
-                    Свойства параметра: ${this.escapeHtml(this.channel.name)}
+            <div class="modal-header" style="background: linear-gradient(to right, #2a2a2c, #353538); border-bottom: 1px solid #444; padding: 16px 20px;">
+                <div class="modal-title" style="display:flex; align-items:center; gap:10px; font-weight:600; color:#fff; font-size:16px;">
+                    <span style="display:inline-block; width:14px; height:14px; border-radius:3px; background-color:${this.channel.color}; border: 1px solid rgba(255,255,255,0.2);"></span>
+                    Переменная ${isBit ? '(Только чтение)' : ''}
                 </div>
-                <button class="modal-close" id="prop-modal-close">&times;</button>
+                <button class="modal-close" id="prop-modal-close" style="font-size:24px; color:#999; transition: color 0.2s; background:transparent; border:none; cursor:pointer;">&times;</button>
             </div>
-            <div class="modal-body" style="display:flex; flex-direction:column; gap:14px;">
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:16px; padding: 24px; background: #222225;">
+                <div style="display:flex; gap:16px;">
+                    <div class="form-group" style="flex:1.5; margin-bottom:0;">
+                        <label style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:block;">Название</label>
+                        <input type="text" id="prop-name" class="form-input" value="${this.escapeHtml(this.channel.name)}" ${disabledAttr} style="background:#1a1a1d; border-color:#3a3a3d; ${readonlyStyle}" />
+                    </div>
+                    <div class="form-group" style="flex:1; margin-bottom:0;">
+                        <label style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:block;">Идентификатор</label>
+                        <input type="text" class="form-input" value="${this.escapeHtml(this.channel.id)}" disabled style="opacity:0.6; cursor:not-allowed; background:#1a1a1d; border-color:#3a3a3d;" />
+                    </div>
+                </div>
+                
                 <div class="form-group" style="margin-bottom:0;">
-                    <label>Идентификатор (ID / Tag)</label>
-                    <input type="text" class="form-input" value="${this.escapeHtml(this.channel.id)}" disabled style="opacity:0.7; cursor:not-allowed;" />
+                    <label style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:block;">Описание</label>
+                    <input type="text" id="prop-desc" class="form-input" value="${this.escapeHtml(this.channel.description)}" ${disabledAttr} style="background:#1a1a1d; border-color:#3a3a3d; ${readonlyStyle}" />
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label>Наименование (Имя)</label>
-                    <input type="text" id="prop-name" class="form-input" value="${this.escapeHtml(this.channel.name)}" />
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label>Описание</label>
-                    <input type="text" id="prop-desc" class="form-input" value="${this.escapeHtml(this.channel.description)}" />
-                </div>
-                <div style="display:flex; gap:12px;">
+                
+                <div style="display:flex; gap:16px; align-items: flex-end;">
                     <div class="form-group" style="flex:1; margin-bottom:0;">
-                        <label>Единица измерения</label>
-                        <input type="text" id="prop-unit" class="form-input" value="${this.escapeHtml(this.channel.unit)}" />
-                    </div>
-                    <div class="form-group" style="flex:1; margin-bottom:0;">
-                        <label>Множитель (Scale)</label>
-                        <input type="number" step="any" id="prop-scale" class="form-input" value="${this.channel.scale}" />
+                        <label style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:block;">Шкала</label>
+                        <input type="number" step="any" id="prop-scale" class="form-input" value="${this.channel.scale}" ${disabledAttr} style="background:#1a1a1d; border-color:#3a3a3d; ${readonlyStyle}" />
                     </div>
                 </div>
-                <div style="display:flex; gap:12px;">
+                
+                <div style="display:flex; gap:16px; align-items: flex-end;">
                     <div class="form-group" style="flex:1; margin-bottom:0;">
-                        <label>Цвет графика</label>
-                        <input type="color" id="prop-color" class="form-input" value="${this.channel.color}" style="height:38px; padding:2px; cursor:pointer;" />
+                        <label style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:block;">Максимум</label>
+                        <div style="position:relative; display:flex; align-items:center; gap: 8px;">
+                            <input type="number" step="any" id="prop-custom-max" class="form-input" value="${this.channel.customMax}" ${disabledAttr} style="background:#1a1a1d; border-color:#3a3a3d; flex: 1; ${readonlyStyle}" />
+                            <div style="position: relative; flex: 0 0 100px;">
+                                <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; color: #666; font-family: monospace;">0x</span>
+                                <input type="text" id="prop-max-hex" class="form-input" value="${Math.round(this.channel.customMax).toString(16).toUpperCase().padStart(4, '0')}" ${disabledAttr} style="background:#1a1a1d; border-color:#3a3a3d; font-family:monospace; color:#00d2ff; padding-left: 24px; text-transform: uppercase; ${readonlyStyle}" />
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group" style="flex:1; margin-bottom:0;">
-                        <label>Тип данных</label>
-                        <input type="text" class="form-input" value="${this.escapeHtml(this.channel.dataType)}" disabled style="opacity:0.7; cursor:not-allowed;" />
+                        <label style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:block;">Высота строки (px)</label>
+                        <input type="number" id="prop-height" class="form-input" value="${this.channel.rowHeight}" ${disabledAttr} style="background:#1a1a1d; border-color:#3a3a3d; ${readonlyStyle}" />
                     </div>
                 </div>
-                <div style="display:flex; gap:12px;">
+
+                <div style="display:flex; gap:16px; align-items: center; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
                     <div class="form-group" style="flex:1; margin-bottom:0;">
-                        <label>Modbus Регистр</label>
-                        <input type="text" class="form-input" value="${this.escapeHtml(this.channel.modbusReg || '—')}" disabled style="opacity:0.7; cursor:not-allowed;" />
+                        <label style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:block;">Цвет графика</label>
+                        <input type="color" id="prop-color" class="form-input" value="${this.channel.color}" ${disabledAttr} style="height:32px; padding:2px; cursor:${isBit ? 'not-allowed' : 'pointer'}; background:#1a1a1d; border-color:#3a3a3d; ${readonlyStyle}" />
                     </div>
-                    <div class="form-group" style="flex:1; margin-bottom:0; display:flex; flex-direction:column; justify-content:flex-end;">
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:#e0e0e0; margin-bottom:8px;">
-                            <input type="checkbox" id="prop-visible" ${currentlyVisible ? 'checked' : ''} style="width:16px; height:16px; accent-color:#00d2ff; cursor:pointer;" />
-                            Отображать в графиках
+                    <div class="form-group" style="flex:1; margin-bottom:0; display:flex; align-items:center; height:100%; margin-top: 18px;">
+                        <label style="display:flex; align-items:center; gap:10px; cursor:${isBit ? 'not-allowed' : 'pointer'}; font-size:13px; color:#eee; user-select:none;">
+                            <input type="checkbox" id="prop-autoscale" ${this.channel.autoScale ? 'checked' : ''} ${disabledAttr} style="width:18px; height:18px; accent-color:#00d2ff; cursor:${isBit ? 'not-allowed' : 'pointer'}; ${readonlyStyle}" />
+                            Авто масштаб
                         </label>
                     </div>
                 </div>
+
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:block;">Modbus Регистр</label>
+                    <input type="text" class="form-input" value="${this.escapeHtml(this.channel.modbusReg || '—')}" disabled style="opacity:0.6; cursor:not-allowed; background:#1a1a1d; border-color:#3a3a3d;" />
+                </div>
             </div>
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px; padding-top:14px; border-top:1px solid #2a2a2c;">
-                <button class="toolbar-btn" id="prop-btn-cancel">Отмена</button>
-                <button class="toolbar-btn primary" id="prop-btn-save">Сохранить</button>
+            <div style="display:flex; justify-content:flex-end; gap:12px; padding: 16px 24px; background: #1a1a1d; border-top:1px solid #333;">
+                <button class="toolbar-btn" id="prop-btn-cancel" style="padding: 8px 20px; font-weight:500;">${isBit ? 'Закрыть' : 'Отмена'}</button>
+                ${!isBit ? '<button class="toolbar-btn primary" id="prop-btn-save" style="padding: 8px 24px; font-weight:600; background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%); border:none; box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);">Сохранить</button>' : ''}
             </div>
         `;
 
         this.overlay.appendChild(content);
         document.body.appendChild(this.overlay);
+
+        // Интерактивное обновление HEX для максимума и наоборот
+        const maxInput = content.querySelector('#prop-custom-max') as HTMLInputElement;
+        const hexInput = content.querySelector('#prop-max-hex') as HTMLInputElement;
+        
+        maxInput?.addEventListener('input', () => {
+            const val = parseFloat(maxInput.value);
+            if (!isNaN(val)) {
+                hexInput.value = Math.round(val).toString(16).toUpperCase().padStart(4, '0');
+            }
+        });
+
+        hexInput?.addEventListener('input', () => {
+            const hexVal = hexInput.value.replace(/[^0-9A-Fa-f]/g, '');
+            hexInput.value = hexVal.toUpperCase(); // Оставляем только валидные hex символы
+            
+            if (hexVal) {
+                const decimalVal = parseInt(hexVal, 16);
+                if (!isNaN(decimalVal)) {
+                    maxInput.value = decimalVal.toString();
+                }
+            }
+        });
+
+        // Логика изменения множителя -> обновление максимума
+        const scaleInput = content.querySelector('#prop-scale') as HTMLInputElement;
+        scaleInput?.addEventListener('change', () => {
+            const newScale = parseFloat(scaleInput.value);
+            if (!isNaN(newScale) && newScale !== 0) {
+                const oldScale = this.channel.scale;
+                const ratio = newScale / oldScale;
+                const newMax = this.channel.customMax * ratio;
+                maxInput.value = newMax.toString();
+                hexInput.value = Math.round(newMax).toString(16).toUpperCase().padStart(4, '0');
+            }
+        });
 
         const closeBtn = content.querySelector('#prop-modal-close') as HTMLButtonElement;
         const cancelBtn = content.querySelector('#prop-btn-cancel') as HTMLButtonElement;
@@ -99,22 +152,30 @@ export class ChannelPropertiesModal {
         saveBtn?.addEventListener('click', () => {
             const nameInput = content.querySelector('#prop-name') as HTMLInputElement;
             const descInput = content.querySelector('#prop-desc') as HTMLInputElement;
-            const unitInput = content.querySelector('#prop-unit') as HTMLInputElement;
             const scaleInput = content.querySelector('#prop-scale') as HTMLInputElement;
             const colorInput = content.querySelector('#prop-color') as HTMLInputElement;
-            const visibleInput = content.querySelector('#prop-visible') as HTMLInputElement;
+            const maxInput = content.querySelector('#prop-custom-max') as HTMLInputElement;
+            const heightInput = content.querySelector('#prop-height') as HTMLInputElement;
+            const autoScaleInput = content.querySelector('#prop-autoscale') as HTMLInputElement;
 
             if (nameInput) this.channel.name = nameInput.value.trim() || this.channel.name;
             if (descInput) this.channel.description = descInput.value.trim();
-            if (unitInput) this.channel.unit = unitInput.value.trim();
             if (scaleInput && !isNaN(parseFloat(scaleInput.value))) {
                 this.channel.scale = parseFloat(scaleInput.value);
             }
             if (colorInput) this.channel.color = colorInput.value;
+            
+            if (maxInput && !isNaN(parseFloat(maxInput.value))) {
+                this.channel.customMax = parseFloat(maxInput.value);
+            }
+            if (heightInput && !isNaN(parseInt(heightInput.value))) {
+                this.channel.rowHeight = Math.max(20, Math.min(600, parseInt(heightInput.value)));
+            }
+            if (autoScaleInput) {
+                this.channel.autoScale = autoScaleInput.checked;
+            }
 
-            const isVisible = visibleInput ? visibleInput.checked : true;
-
-            this.onSave(this.channel, isVisible);
+            this.onSave(this.channel, true);
             this.close();
         });
     }

@@ -8,8 +8,8 @@ export class ChannelRow {
     private readonly element: HTMLDivElement;
     private readonly nameElement: HTMLDivElement;
     private readonly hexElement: HTMLDivElement;
-    private readonly valueElement: HTMLDivElement;
     private readonly unitElement: HTMLDivElement;
+    private readonly valueElement: HTMLDivElement;
     private readonly graphElement: HTMLDivElement;
     private readonly colorIndicator: HTMLSpanElement;
     private isVisible: boolean = true;
@@ -19,6 +19,7 @@ export class ChannelRow {
     constructor(public readonly channel: Channel) {
         this.element = document.createElement('div');
         this.element.className = 'channel-row';
+        this.element.style.height = `${this.channel.rowHeight}px`;
         this.element.dataset.channelId = channel.id;
 
         // 1. Колонка Имя (Name)
@@ -38,30 +39,30 @@ export class ChannelRow {
 
         // 2. Колонка HEX значение (hex)
         this.hexElement = document.createElement('div');
-        this.hexElement.className = 'col-description'; // Используем существующий CSS класс разметки
+        this.hexElement.className = 'col-description'; 
         this.hexElement.textContent = channel.hexValue;
         this.hexElement.style.fontFamily = 'monospace';
         this.hexElement.style.color = '#38bdf8';
 
-        // 3. Колонка Десятичное значение * Шкала (Value)
-        this.valueElement = document.createElement('div');
-        this.valueElement.className = 'col-value';
-        this.valueElement.textContent = String(channel.scaledValue);
-
-        // 4. Колонка Единица измерения (Unit)
+        // 3. Колонка Unit
         this.unitElement = document.createElement('div');
         this.unitElement.className = 'col-unit';
         this.unitElement.textContent = channel.unit;
 
-        // 5. Колонка Графика PixiJS (Graph)
+        // 4. Колонка Physical (Value)
+        this.valueElement = document.createElement('div');
+        this.valueElement.className = 'col-value';
+        this.valueElement.textContent = String(channel.scaledValue);
+
+        // 5. Колонка Graph
         this.graphElement = document.createElement('div');
         this.graphElement.className = 'col-graph';
 
         this.element.append(
             this.nameElement,
             this.hexElement,
-            this.valueElement,
             this.unitElement,
+            this.valueElement,
             this.graphElement
         );
 
@@ -127,6 +128,9 @@ export class ChannelRow {
             titleSpan.setAttribute('title', `${this.channel.name} (${this.channel.description})`);
         }
         this.unitElement.textContent = this.channel.unit;
+        
+        // Применяем высоту
+        this.element.style.height = `${this.channel.rowHeight}px`;
     }
 
     public setVisible(visible: boolean): void {

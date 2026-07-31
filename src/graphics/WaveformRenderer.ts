@@ -24,9 +24,9 @@ export class WaveformRenderer {
         if (samples.length < 1) return;
 
         let min = channel.min;
-        let max = channel.max;
+        let max = channel.autoScale ? channel.max : channel.customMax;
 
-        if (settings.autoScale) {
+        if (channel.autoScale) {
             const range = archive.getMinMax(channel.id, duration, currentTime);
             if (range.min !== range.max) {
                 const margin = (range.max - range.min) * 0.1 || 1;
@@ -53,7 +53,12 @@ export class WaveformRenderer {
         const colorNum = new Color(channel.color).toNumber();
 
         const getX = (t: number) => ((t - startTime) / duration) * width;
-        const getY = (val: number) => Math.max(-10, Math.min(height + 10, height - ((val - min) / vRange) * height));
+        const getY = (val: number) => {
+            // Рассчитываем позицию Y
+            const y = height - ((val - min) / vRange) * height;
+            // Обрезаем значения, выходящие за пределы (0 - верх, height - низ)
+            return Math.max(0, Math.min(height, y));
+        };
 
         const startX = getX(samples[0].time);
         const startY = getY(samples[0].value);
@@ -96,37 +101,55 @@ export class WaveformRenderer {
 
         const startTime = currentTime - duration;
         const colorNum = new Color(channel.color).toNumber();
-
         const getX = (t: number) => ((t - startTime) / duration) * width;
-        const highY = height * 0.2;
-        const lowY = height * 0.8;
-        const getY = (v: number) => (v >= 0.5 ? highY : lowY);
+        
+        const margin = 2; 
+        const barHeight = height - (margin * 2);
+        const lineY = height - margin - 1;
+        
+        // Рисуем все сегменты "1" (заливка)
+        let lastValue = samples[0].value;
+        let segmentStartX = Math.max(0, getX(samples[0].time));
 
-        let prevX = getX(samples[0].time);
-        let prevY = getY(samples[0].value);
+        for (let i = 1; i <= samples.length; i++) {
+            const currentT = i < samples.length ? samples[i].time : currentTime;
+            const currentValue = i < samples.length ? samples[i].value : lastValue;
+            const currentX = getX(currentT);
 
-        if (prevX > 0) {
-            g.moveTo(0, prevY);
-            g.lineTo(prevX, prevY);
-        } else {
-            g.moveTo(prevX, prevY);
+            if (currentValue !== lastValue || i === samples.length) {
+                const endX = Math.min(width, currentX);
+                if (endX > segmentStartX) {
+                    if (lastValue >= 0.5) {
+                        g.rect(segmentStartX, margin, endX - segmentStartX, barHeight);
+                    }
+                }
+                segmentStartX = Math.max(0, currentX);
+                lastValue = currentValue;
+            }
         }
+        g.fill({ color: colorNum, alpha: 0.7 });
 
-        for (let i = 1; i < samples.length; i++) {
-            const currentX = getX(samples[i].time);
-            const currentY = getY(samples[i].value);
+        // Рисуем все сегменты "0" (линии)
+        lastValue = samples[0].value;
+        segmentStartX = Math.max(0, getX(samples[0].time));
 
-            g.lineTo(currentX, prevY);
-            g.lineTo(currentX, currentY);
+        for (let i = 1; i <= samples.length; i++) {
+            const currentT = i < samples.length ? samples[i].time : currentTime;
+            const currentValue = i < samples.length ? samples[i].value : lastValue;
+            const currentX = getX(currentT);
 
-            prevX = currentX;
-            prevY = currentY;
+            if (currentValue !== lastValue || i === samples.length) {
+                const endX = Math.min(width, currentX);
+                if (endX > segmentStartX) {
+                    if (lastValue < 0.5) {
+                        g.moveTo(segmentStartX, lineY);
+                        g.lineTo(endX, lineY);
+                    }
+                }
+                segmentStartX = Math.max(0, currentX);
+                lastValue = currentValue;
+            }
         }
-
-        if (prevX < width) {
-            g.lineTo(width, prevY);
-        }
-
-        g.stroke({ width: 2, color: colorNum, alpha: 1.0 });
+        g.stroke({ width: 2, color: colorNum, alpha: 0.9 });
     }
 }

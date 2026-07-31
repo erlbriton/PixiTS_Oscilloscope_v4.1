@@ -64,7 +64,22 @@ export class IniPanel {
 
         for (const file of filesArray) {
             try {
-                const content = await file.text();
+                const buffer = await file.arrayBuffer();
+                let content: string;
+                
+                try {
+                    // 1. Пробуем UTF-8 (строгий режим)
+                    content = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+                } catch (e) {
+                    try {
+                        // 2. Если не UTF-8, пробуем Windows-1251 (стандарт для INI в РФ)
+                        content = new TextDecoder('windows-1251', { fatal: true }).decode(buffer);
+                    } catch (e2) {
+                        // 3. Крайний случай - просто UTF-8 без фатальных ошибок (может быть битым, но хоть что-то)
+                        content = new TextDecoder('utf-8').decode(buffer);
+                    }
+                }
+
                 const item: IniFileItem = {
                     id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).substring(2, 7)}`,
                     name: file.name,

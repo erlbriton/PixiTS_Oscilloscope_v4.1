@@ -13,11 +13,11 @@ export class Layout {
                 <div id="oscilloscope">
                     <div id="toolbar"></div>
                     <div id="header">
-                        <div class="col-name">Имя</div>
+                        <div class="col-name">Name</div>
                         <div class="col-description">hex</div>
-                        <div class="col-value">Значение</div>
-                        <div class="col-unit">Ед.</div>
-                        <div class="col-graph">График (PixiJS)</div>
+                        <div class="col-unit">Unit</div>
+                        <div class="col-value">Physical</div>
+                        <div class="col-graph">Graph</div>
                     </div>
                     <div id="channelRows"></div>
                     <div id="footer" style="display: none;">
