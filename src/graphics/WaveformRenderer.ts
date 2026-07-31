@@ -58,7 +58,11 @@ export class WaveformRenderer {
         const startX = getX(samples[0].time);
         const startY = getY(samples[0].value);
 
-        g.moveTo(startX, startY);
+        g.moveTo(Math.max(0, Math.min(width, startX)), startY);
+        if (startX > 0) {
+            g.moveTo(0, startY);
+            g.lineTo(startX, startY);
+        }
 
         for (let i = 1; i < samples.length; i++) {
             const x = getX(samples[i].time);
@@ -101,7 +105,12 @@ export class WaveformRenderer {
         let prevX = getX(samples[0].time);
         let prevY = getY(samples[0].value);
 
-        g.moveTo(prevX, prevY);
+        if (prevX > 0) {
+            g.moveTo(0, prevY);
+            g.lineTo(prevX, prevY);
+        } else {
+            g.moveTo(prevX, prevY);
+        }
 
         for (let i = 1; i < samples.length; i++) {
             const currentX = getX(samples[i].time);

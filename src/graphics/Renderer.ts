@@ -41,6 +41,8 @@ export class Renderer {
         } else {
             view.cursorGraphics.clear();
         }
+
+        view.present();
     }
 
     private renderGrid(view: PixiView, width: number, height: number): void {

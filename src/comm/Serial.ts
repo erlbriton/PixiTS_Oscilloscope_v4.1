@@ -108,11 +108,15 @@ export class Serial {
         let maxReg = 10;
         this.channels.forEach(ch => {
             if (ch.modbusReg) {
-                const match = ch.modbusReg.match(/r(\d+)/i);
+                const match = ch.modbusReg.match(/r([0-9a-fA-F]+)/i);
                 if (match) {
-                    const regIdx = parseInt(match[1], 10);
-                    if (!isNaN(regIdx) && regIdx + 1 > maxReg) {
-                        maxReg = regIdx + 1;
+                    const regIdx = parseInt(match[1], 16);
+                    const typeUpper = (ch.dataType || '').toUpperCase();
+                    const is32Bit = typeUpper === 'TFLOAT' || typeUpper === 'TFLOAT32' || typeUpper === 'FLOAT' ||
+                                    typeUpper === 'TDWORD' || typeUpper === 'TLONG' || typeUpper === 'TINT32';
+                    const count = is32Bit ? 2 : 1;
+                    if (!isNaN(regIdx) && regIdx + count > maxReg) {
+                        maxReg = regIdx + count;
                     }
                 }
             }
@@ -183,24 +187,51 @@ export class Serial {
                 this.channels.forEach((ch, idx) => {
                     let val: number | null = null;
                     if (ch.modbusReg) {
-                        const bitMatch = ch.modbusReg.match(/r(\d+)\.(\d+)/i);
-                        const regMatch = ch.modbusReg.match(/r(\d+)/i);
+                        const bitMatch = ch.modbusReg.match(/r([0-9a-fA-F]+)\.([0-9a-fA-F]+)/i);
+                        const regMatch = ch.modbusReg.match(/r([0-9a-fA-F]+)/i);
                         if (bitMatch) {
-                            const regIdx = parseInt(bitMatch[1], 10);
-                            const bitIdx = parseInt(bitMatch[2], 10);
+                            const regIdx = parseInt(bitMatch[1], 16);
+                            const bitIdx = parseInt(bitMatch[2], 16);
                             if (regIdx < modbusRes.registers.length) {
-                                val = (modbusRes.registers[regIdx] >> bitIdx) & 1;
+                                val = (modbusRes.registers[regIdx] >>> bitIdx) & 1;
                             }
                         } else if (regMatch) {
-                            const regIdx = parseInt(regMatch[1], 10);
-                            if (regIdx < modbusRes.registers.length) {
-                                val = modbusRes.registers[regIdx];
+                            const regIdx = parseInt(regMatch[1], 16);
+                            const typeUpper = (ch.dataType || '').toUpperCase();
+
+                            if (typeUpper === 'TFLOAT' || typeUpper === 'TFLOAT32' || typeUpper === 'FLOAT' || typeUpper === 'REAL') {
+                                if (regIdx + 1 < modbusRes.registers.length) {
+                                    const w1 = modbusRes.registers[regIdx] & 0xFFFF;
+                                    const w2 = modbusRes.registers[regIdx + 1] & 0xFFFF;
+                                    const buf = new ArrayBuffer(4);
+                                    const view = new DataView(buf);
+                                    view.setUint16(0, w1, false);
+                                    view.setUint16(2, w2, false);
+                                    const fVal = view.getFloat32(0, false);
+                                    val = isNaN(fVal) || !isFinite(fVal) ? 0 : fVal;
+                                }
+                            } else if (typeUpper === 'TDWORD' || typeUpper === 'TLONG' || typeUpper === 'TINT32') {
+                                if (regIdx + 1 < modbusRes.registers.length) {
+                                    const w1 = modbusRes.registers[regIdx] & 0xFFFF;
+                                    const w2 = modbusRes.registers[regIdx + 1] & 0xFFFF;
+                                    val = (w1 << 16) | w2;
+                                }
+                            } else if (typeUpper === 'TSHORT' || typeUpper === 'TINT16' || typeUpper === 'TINTEGER' || typeUpper === 'INT') {
+                                if (regIdx < modbusRes.registers.length) {
+                                    let s16 = modbusRes.registers[regIdx] & 0xFFFF;
+                                    if (s16 & 0x8000) s16 -= 0x10000;
+                                    val = s16;
+                                }
+                            } else {
+                                if (regIdx < modbusRes.registers.length) {
+                                    val = modbusRes.registers[regIdx] & 0xFFFF;
+                                }
                             }
                         }
                     }
 
                     if (val === null && idx < modbusRes.registers.length) {
-                        val = modbusRes.registers[idx];
+                        val = modbusRes.registers[idx] & 0xFFFF;
                     }
 
                     if (val !== null) {

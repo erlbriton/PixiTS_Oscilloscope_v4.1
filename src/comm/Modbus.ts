@@ -66,11 +66,8 @@ export class Modbus {
         for (let i = 0; i < byteCount; i += 2) {
             const high = buffer[3 + i];
             const low = buffer[3 + i + 1];
-            // 16-bit signed integer conversion
-            let raw = (high << 8) | low;
-            if (raw & 0x8000) {
-                raw = raw - 0x10000;
-            }
+            // 16-bit unsigned integer (0..65535)
+            const raw = ((high & 0xFF) << 8) | (low & 0xFF);
             registers.push(raw);
         }
 

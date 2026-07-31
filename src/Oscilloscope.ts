@@ -86,6 +86,7 @@ export class Oscilloscope {
             id: param.id,
             name: param.name,
             description: param.description,
+            dataType: param.type,
             unit: param.unit,
             scale: param.scale,
             rawDecValue: param.rawDec,

@@ -1,66 +1,120 @@
 // src/graphics/PixiView.ts
 
-import { Application, Container, Graphics } from 'pixi.js';
-
 export interface ViewportBounds {
     width: number;
     height: number;
 }
 
+export interface StrokeOptions {
+    width?: number;
+    color?: number | string;
+    alpha?: number;
+}
+
+export class Canvas2DGraphics {
+    private paths: Array<{
+        commands: Array<{ type: 'moveTo' | 'lineTo'; x: number; y: number }>;
+        width: number;
+        color: number | string;
+        alpha: number;
+    }> = [];
+
+    private currentCommands: Array<{ type: 'moveTo' | 'lineTo'; x: number; y: number }> = [];
+
+    public clear(): void {
+        this.paths = [];
+        this.currentCommands = [];
+    }
+
+    public moveTo(x: number, y: number): void {
+        this.currentCommands.push({ type: 'moveTo', x, y });
+    }
+
+    public lineTo(x: number, y: number): void {
+        this.currentCommands.push({ type: 'lineTo', x, y });
+    }
+
+    public stroke(options?: StrokeOptions): void {
+        if (this.currentCommands.length === 0) return;
+        const width = options?.width ?? 1;
+        const alpha = options?.alpha ?? 1.0;
+        const color = options?.color ?? '#38bdf8';
+
+        this.paths.push({
+            commands: [...this.currentCommands],
+            width,
+            color,
+            alpha
+        });
+        this.currentCommands = [];
+    }
+
+    public drawToContext(ctx: CanvasRenderingContext2D): void {
+        for (const path of this.paths) {
+            if (path.commands.length === 0) continue;
+            ctx.save();
+            
+            let colorStr = '#38bdf8';
+            if (typeof path.color === 'number') {
+                const hex = path.color.toString(16).padStart(6, '0');
+                const r = parseInt(hex.slice(0, 2), 16);
+                const g = parseInt(hex.slice(2, 4), 16);
+                const b = parseInt(hex.slice(4, 6), 16);
+                colorStr = `rgba(${r}, ${g}, ${b}, ${path.alpha})`;
+            } else {
+                colorStr = path.color;
+                ctx.globalAlpha = path.alpha;
+            }
+
+            ctx.lineWidth = path.width;
+            ctx.strokeStyle = colorStr;
+            ctx.beginPath();
+
+            for (const cmd of path.commands) {
+                if (cmd.type === 'moveTo') {
+                    ctx.moveTo(cmd.x, cmd.y);
+                } else if (cmd.type === 'lineTo') {
+                    ctx.lineTo(cmd.x, cmd.y);
+                }
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+}
+
 export class PixiView {
-    public app: Application;
-    public stage: Container;
-    public gridGraphics: Graphics;
-    public waveGraphics: Graphics;
-    public cursorGraphics: Graphics;
+    public canvas: HTMLCanvasElement;
+    public ctx: CanvasRenderingContext2D | null = null;
+    public gridGraphics: Canvas2DGraphics;
+    public waveGraphics: Canvas2DGraphics;
+    public cursorGraphics: Canvas2DGraphics;
     public containerElement: HTMLElement;
-    private initialized: boolean = false;
-    private resizeObserver: ResizeObserver | null = null;
     public bounds: ViewportBounds = { width: 300, height: 120 };
+    private resizeObserver: ResizeObserver | null = null;
 
     constructor(containerElement: HTMLElement) {
         this.containerElement = containerElement;
-        this.app = new Application();
-        this.stage = new Container();
-        this.gridGraphics = new Graphics();
-        this.waveGraphics = new Graphics();
-        this.cursorGraphics = new Graphics();
+        this.canvas = document.createElement('canvas');
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        this.canvas.style.display = 'block';
 
-        this.stage.addChild(this.gridGraphics);
-        this.stage.addChild(this.waveGraphics);
-        this.stage.addChild(this.cursorGraphics);
+        this.gridGraphics = new Canvas2DGraphics();
+        this.waveGraphics = new Canvas2DGraphics();
+        this.cursorGraphics = new Canvas2DGraphics();
     }
 
     public async init(): Promise<void> {
-        if (this.initialized) return;
+        this.containerElement.innerHTML = '';
+        this.containerElement.appendChild(this.canvas);
+        this.ctx = this.canvas.getContext('2d');
 
         const rect = this.containerElement.getBoundingClientRect();
         const width = Math.max(50, Math.floor(rect.width || 400));
         const height = Math.max(10, Math.floor(rect.height || 20));
-        this.bounds = { width, height };
+        this.resize(width, height);
 
-        await this.app.init({
-            width,
-            height,
-            backgroundColor: 0x050505,
-            antialias: true,
-            autoDensity: true,
-            resolution: window.devicePixelRatio || 1,
-        });
-
-        // Attach Pixi canvas to HTML graph container
-        const canvas = this.app.canvas as HTMLCanvasElement;
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
-        canvas.style.display = 'block';
-
-        // Clear existing children in container and append canvas
-        this.containerElement.innerHTML = '';
-        this.containerElement.appendChild(canvas);
-
-        this.app.stage.addChild(this.stage);
-
-        // Setup resize observer
         this.resizeObserver = new ResizeObserver((entries) => {
             for (let entry of entries) {
                 const w = Math.max(50, Math.floor(entry.contentRect.width));
@@ -71,15 +125,28 @@ export class PixiView {
             }
         });
         this.resizeObserver.observe(this.containerElement);
-
-        this.initialized = true;
     }
 
     public resize(width: number, height: number): void {
         this.bounds = { width, height };
-        if (this.app && this.app.renderer) {
-            this.app.renderer.resize(width, height);
-        }
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = Math.floor(width * dpr);
+        this.canvas.height = Math.floor(height * dpr);
+    }
+
+    public present(): void {
+        if (!this.ctx) return;
+        const dpr = window.devicePixelRatio || 1;
+        this.ctx.save();
+        this.ctx.scale(dpr, dpr);
+
+        this.ctx.clearRect(0, 0, this.bounds.width, this.bounds.height);
+
+        this.gridGraphics.drawToContext(this.ctx);
+        this.waveGraphics.drawToContext(this.ctx);
+        this.cursorGraphics.drawToContext(this.ctx);
+
+        this.ctx.restore();
     }
 
     public destroy(): void {
@@ -87,8 +154,7 @@ export class PixiView {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
         }
-        if (this.app) {
-            this.app.destroy(true, { children: true, texture: true });
-        }
+        this.containerElement.innerHTML = '';
     }
 }
+

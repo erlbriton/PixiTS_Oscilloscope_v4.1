@@ -418,6 +418,10 @@ html, body {
     box-shadow: inset 4px 0 0 #4ade80;
 }
 
+.channel-row.selected .col-graph {
+    background-color: transparent !important;
+}
+
 .channel-row.selected .col-graph::after {
     content: '';
     position: absolute;
@@ -425,7 +429,7 @@ html, body {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(74, 222, 128, 0.3);
+    background-color: rgba(74, 222, 128, 0.25);
     pointer-events: none;
     z-index: 5;
 }

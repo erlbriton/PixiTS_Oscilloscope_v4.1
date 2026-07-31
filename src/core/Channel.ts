@@ -4,6 +4,7 @@ export interface ChannelConfig {
     id: string;          // p00600
     name: string;        // Ustat
     description: string; // Напряжение статора
+    dataType?: string;   // TFloat, TBit, TWORD, TDWORD, etc.
     value?: number | string;
     unit: string;        // B, A, Hz
     scale?: number;      // Множитель
@@ -38,6 +39,7 @@ export class Channel {
     public min: number;
     public max: number;
     public type: 'analog' | 'digital';
+    public dataType: string;
     public scale: number;
     public isBit: boolean;
     public modbusReg: string;
@@ -52,6 +54,7 @@ export class Channel {
         this.scale = config.scale !== undefined ? config.scale : 1.0;
         this.isBit = config.isBit || false;
         this.type = this.isBit ? 'digital' : 'analog';
+        this.dataType = config.dataType || (this.isBit ? 'TBit' : 'TWORD');
         this.modbusReg = config.modbusReg || '';
 
         this.rawDecValue = config.rawDecValue !== undefined ? config.rawDecValue : 0;
@@ -71,8 +74,21 @@ export class Channel {
             this.hexValue = this.rawDecValue === 1 ? '0x0001' : '0x0000';
             this.scaledValue = this.rawDecValue;
         } else {
-            this.hexValue = '0x' + (Math.round(rawDec) & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
-            this.scaledValue = Math.round((rawDec * this.scale) * 1000) / 1000;
+            const typeUpper = (this.dataType || '').toUpperCase();
+            if (typeUpper === 'TFLOAT' || typeUpper === 'TFLOAT32' || typeUpper === 'FLOAT' || typeUpper === 'REAL') {
+                this.scaledValue = Math.round((rawDec * this.scale) * 1000) / 1000;
+                const buf = new ArrayBuffer(4);
+                const view = new DataView(buf);
+                view.setFloat32(0, rawDec, false);
+                const uintVal = view.getUint32(0, false);
+                this.hexValue = '0x' + uintVal.toString(16).toUpperCase().padStart(8, '0');
+            } else if (typeUpper === 'TDWORD' || typeUpper === 'TLONG' || typeUpper === 'TINT32') {
+                this.scaledValue = Math.round((rawDec * this.scale) * 1000) / 1000;
+                this.hexValue = '0x' + (rawDec >>> 0).toString(16).toUpperCase().padStart(8, '0');
+            } else {
+                this.scaledValue = Math.round((rawDec * this.scale) * 1000) / 1000;
+                this.hexValue = '0x' + (Math.round(rawDec) & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+            }
         }
         this.value = this.scaledValue;
     }
