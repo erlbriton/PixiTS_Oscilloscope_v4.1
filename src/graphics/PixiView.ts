@@ -36,7 +36,7 @@ export class PixiView {
 
         const rect = this.containerElement.getBoundingClientRect();
         const width = Math.max(50, Math.floor(rect.width || 400));
-        const height = Math.max(30, Math.floor(rect.height || 120));
+        const height = Math.max(10, Math.floor(rect.height || 20));
         this.bounds = { width, height };
 
         await this.app.init({
@@ -64,7 +64,7 @@ export class PixiView {
         this.resizeObserver = new ResizeObserver((entries) => {
             for (let entry of entries) {
                 const w = Math.max(50, Math.floor(entry.contentRect.width));
-                const h = Math.max(30, Math.floor(entry.contentRect.height));
+                const h = Math.max(10, Math.floor(entry.contentRect.height));
                 if (w !== this.bounds.width || h !== this.bounds.height) {
                     this.resize(w, h);
                 }

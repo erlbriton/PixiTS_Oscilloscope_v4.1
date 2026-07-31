@@ -4,33 +4,19 @@ import { Channel } from '../core/Channel';
 import { Archive } from '../core/Archive';
 import { Modbus } from './Modbus';
 
-export type SerialState = 'disconnected' | 'connecting' | 'connected' | 'simulating' | 'error';
-
-export interface SignalGenParams {
-    frequency: number;  // Base signal frequency in Hz (e.g., 50 Hz)
-    noiseLevel: number; // Random noise amplitude (0 to 10)
-    harmonics: boolean; // Add 3rd/5th harmonics
-    phaseShift: boolean;// Enable 120-degree 3-phase shift
-}
+export type SerialState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 export class Serial {
-    private state: SerialState = 'simulating';
+    private state: SerialState = 'disconnected';
     private port: any = null;
     private reader: any = null;
     private baudRate: number = 115200;
     private archive: Archive;
     private channels: Channel[] = [];
     private stateChangeCallbacks: ((state: SerialState, msg?: string) => void)[] = [];
-
-    // Generator settings
-    public simParams: SignalGenParams = {
-        frequency: 50,
-        noiseLevel: 0.5,
-        harmonics: true,
-        phaseShift: true
-    };
-
-    private simTimeMs: number = 0;
+    private rxBuffer: number[] = [];
+    private asciiTextBuffer: string = '';
+    private pollIntervalId: number | null = null;
 
     constructor(archive: Archive) {
         this.archive = archive;
@@ -57,14 +43,10 @@ export class Serial {
         return 'serial' in navigator;
     }
 
-    /**
-     * Connects to hardware serial port via Web Serial API
-     */
     public async connect(baudRate: number = 115200): Promise<boolean> {
         this.baudRate = baudRate;
         if (!this.isWebSerialSupported()) {
-            const msg = 'Web Serial API не поддерживается вашим браузером. Используйте Google Chrome, Microsoft Edge или Opera.';
-            this.setState('simulating', msg);
+            this.setState('disconnected', 'Web Serial API не поддерживается вашим браузером.');
             return false;
         }
 
@@ -76,16 +58,17 @@ export class Serial {
 
             this.setState('connected', `Подключено к COM-порту @ ${this.baudRate} baud`);
             this.startReading();
+            this.startModbusPolling();
             return true;
         } catch (err: any) {
-            console.warn('Web Serial connection failed or cancelled:', err);
-            let errMsg = err.message || 'Отменено пользователем';
-            this.setState('simulating', `COM-порт не подключен (${errMsg}). Включен симулятор.`);
+            const errMsg = err.message || 'Отменено пользователем';
+            this.setState('disconnected', `COM-порт не подключен (${errMsg}).`);
             return false;
         }
     }
 
     public async disconnect(): Promise<void> {
+        this.stopModbusPolling();
         try {
             if (this.reader) {
                 await this.reader.cancel();
@@ -99,12 +82,55 @@ export class Serial {
         } catch (e) {
             console.error('Error closing serial port:', e);
         }
-        this.setState('simulating', 'Serial port disconnected. Switched to Simulation Mode.');
+        this.setState('disconnected', 'Serial port disconnected.');
+    }
+
+    private startModbusPolling(): void {
+        this.stopModbusPolling();
+        // Send Modbus FC 0x03 poll request every 100ms
+        this.pollIntervalId = window.setInterval(() => {
+            if (this.state === 'connected' && this.channels.length > 0) {
+                this.sendModbus03Request();
+            }
+        }, 100);
+    }
+
+    private stopModbusPolling(): void {
+        if (this.pollIntervalId !== null) {
+            clearInterval(this.pollIntervalId);
+            this.pollIntervalId = null;
+        }
+    }
+
+    private async sendModbus03Request(slaveAddr: number = 1): Promise<void> {
+        if (!this.port || !this.port.writable || this.state !== 'connected') return;
+
+        let maxReg = 10;
+        this.channels.forEach(ch => {
+            if (ch.modbusReg) {
+                const match = ch.modbusReg.match(/r(\d+)/i);
+                if (match) {
+                    const regIdx = parseInt(match[1], 10);
+                    if (!isNaN(regIdx) && regIdx + 1 > maxReg) {
+                        maxReg = regIdx + 1;
+                    }
+                }
+            }
+        });
+        maxReg = Math.min(125, maxReg);
+
+        try {
+            const writer = this.port.writable.getWriter();
+            const frame = Modbus.createReadRequest(slaveAddr, 0x03, 0, maxReg);
+            await writer.write(frame);
+            writer.releaseLock();
+        } catch (err) {
+            console.error('Failed to send Modbus 0x03 request frame:', err);
+        }
     }
 
     private async startReading(): Promise<void> {
         if (!this.port || !this.port.readable) return;
-
         try {
             while (this.port.readable && this.state === 'connected') {
                 this.reader = this.port.readable.getReader();
@@ -112,9 +138,7 @@ export class Serial {
                     while (true) {
                         const { value, done } = await this.reader.read();
                         if (done) break;
-                        if (value) {
-                            this.processIncomingBytes(value);
-                        }
+                        if (value) this.processIncomingBytes(value);
                     }
                 } catch (readErr) {
                     console.error('Serial stream read error:', readErr);
@@ -128,110 +152,66 @@ export class Serial {
         }
     }
 
-    private rxBuffer: number[] = [];
-    private asciiTextBuffer: string = '';
-
     private processIncomingBytes(data: Uint8Array): void {
         const now = Date.now();
-
-        // 1. Try ASCII string line parsing (e.g., "12.5, 3.14, 0.8\n" from Arduino/STM32/ESP32)
         const textChunk = new TextDecoder().decode(data);
         this.asciiTextBuffer += textChunk;
 
         if (this.asciiTextBuffer.includes('\n')) {
             const lines = this.asciiTextBuffer.split('\n');
-            this.asciiTextBuffer = lines.pop() || ''; // Keep incomplete tail
-
+            this.asciiTextBuffer = lines.pop() || '';
             for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed) continue;
-                // Parse numbers separated by commas, spaces, tabs, or colons (e.g. "CH1: 12.5, CH2: 3.2")
-                const matches = trimmed.match(/-?\d+(?:\.\d+)?/g);
-                if (matches && matches.length > 0) {
+                const matches = line.trim().match(/-?\d+(?:\.\d+)?/g);
+                if (matches) {
                     matches.forEach((strVal, idx) => {
                         const val = parseFloat(strVal);
                         if (!isNaN(val) && idx < this.channels.length) {
                             const ch = this.channels[idx];
-                            ch.setValue(val);
-                            this.archive.addSample(ch.id, now, val);
+                            ch.updateRawValue(val);
+                            this.archive.addSample(ch.id, now, ch.scaledValue);
                         }
                     });
                 }
             }
         }
 
-        // 2. Accumulate raw bytes for Modbus RTU frame parsing
-        for (let i = 0; i < data.length; i++) {
-            this.rxBuffer.push(data[i]);
-        }
+        for (let i = 0; i < data.length; i++) this.rxBuffer.push(data[i]);
 
-        if (this.rxBuffer.length >= 7) {
-            const buf = new Uint8Array(this.rxBuffer);
-            const modbusRes = Modbus.parseReadResponse(buf);
-            if (modbusRes) {
-                modbusRes.registers.forEach((regValue, idx) => {
-                    if (idx < this.channels.length) {
-                        const ch = this.channels[idx];
-                        ch.setValue(regValue);
-                        this.archive.addSample(ch.id, now, regValue);
+        if (this.rxBuffer.length >= 5) {
+            const modbusRes = Modbus.parseReadResponse(new Uint8Array(this.rxBuffer));
+            if (modbusRes && (modbusRes.functionCode === 0x03 || modbusRes.functionCode === 0x04)) {
+                this.channels.forEach((ch, idx) => {
+                    let val: number | null = null;
+                    if (ch.modbusReg) {
+                        const bitMatch = ch.modbusReg.match(/r(\d+)\.(\d+)/i);
+                        const regMatch = ch.modbusReg.match(/r(\d+)/i);
+                        if (bitMatch) {
+                            const regIdx = parseInt(bitMatch[1], 10);
+                            const bitIdx = parseInt(bitMatch[2], 10);
+                            if (regIdx < modbusRes.registers.length) {
+                                val = (modbusRes.registers[regIdx] >> bitIdx) & 1;
+                            }
+                        } else if (regMatch) {
+                            const regIdx = parseInt(regMatch[1], 10);
+                            if (regIdx < modbusRes.registers.length) {
+                                val = modbusRes.registers[regIdx];
+                            }
+                        }
+                    }
+
+                    if (val === null && idx < modbusRes.registers.length) {
+                        val = modbusRes.registers[idx];
+                    }
+
+                    if (val !== null) {
+                        ch.updateRawValue(val);
+                        this.archive.addSample(ch.id, now, ch.scaledValue);
                     }
                 });
                 this.rxBuffer = [];
-                return;
             }
         }
 
-        // Prevent infinite buffer growth
-        if (this.rxBuffer.length > 512) {
-            this.rxBuffer = this.rxBuffer.slice(-256);
-        }
-    }
-
-    /**
-     * Updates simulation generators on each frame ticker tick
-     */
-    public tickSimulation(dtMs: number): void {
-        if (this.state !== 'simulating' && this.state !== 'disconnected') {
-            return;
-        }
-
-        this.simTimeMs += dtMs;
-        const now = Date.now();
-        const t = this.simTimeMs / 1000;
-        const freq = this.simParams.frequency;
-        const noise = this.simParams.noiseLevel;
-
-        this.channels.forEach((ch, idx) => {
-            let val = 0;
-            const phaseShift = this.simParams.phaseShift ? (idx % 3) * ((2 * Math.PI) / 3) : 0;
-            const omega = 2 * Math.PI * freq;
-
-            if (ch.type === 'digital') {
-                // Digital signal (0 or 1 clock wave)
-                const pulsePeriod = 1.0 / Math.max(0.1, freq / 10);
-                const isHigh = Math.sin(omega * 0.2 * t + phaseShift) > 0;
-                val = isHigh ? 1 : 0;
-            } else {
-                // Analog signal simulation (Sine, harmonics, modulation)
-                let baseWave = Math.sin(omega * t + phaseShift);
-
-                if (this.simParams.harmonics) {
-                    baseWave += 0.2 * Math.sin(3 * omega * t) + 0.1 * Math.sin(5 * omega * t);
-                }
-
-                // Add amplitude scaling based on channel max
-                const amp = (ch.max - ch.min) * 0.4;
-                const mid = (ch.max + ch.min) / 2;
-
-                // Add random noise component
-                const noiseVal = (Math.random() - 0.5) * noise;
-
-                val = mid + baseWave * amp + noiseVal;
-            }
-
-            const roundedVal = Math.round(val * 100) / 100;
-            ch.setValue(roundedVal);
-            this.archive.addSample(ch.id, now, roundedVal);
-        });
+        if (this.rxBuffer.length > 512) this.rxBuffer = this.rxBuffer.slice(-256);
     }
 }

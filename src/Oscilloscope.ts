@@ -4,16 +4,16 @@ import { Channel } from './core/Channel';
 import { Archive } from './core/Archive';
 import { Recorder } from './core/Recorder';
 import { Settings } from './config/Settings';
-import { DEVICE_PRESETS } from './config/DeviceModels';
 import { Serial } from './comm/Serial';
 import { Table } from './ui/Table';
 import { Toolbar } from './ui/Toolbar';
 import { Resizer } from './ui/Resizer';
 import { Layout } from './ui/Layout';
-import { SignalGenModal } from './ui/SignalGenModal';
 import { WebSerialModal } from './ui/WebSerialModal';
+import { IniPanel, IniFileItem } from './ui/IniPanel';
 import { Renderer } from './graphics/Renderer';
 import { PixiView } from './graphics/PixiView';
+import { IniParser, ParsedRamParam } from './core/IniParser';
 
 export class Oscilloscope {
     private settings: Settings;
@@ -24,12 +24,12 @@ export class Oscilloscope {
     private toolbar!: Toolbar;
     private resizer!: Resizer;
     private renderer!: Renderer;
+    private iniPanel!: IniPanel;
 
     private channels: Channel[] = [];
     private pixiViews: Map<string, PixiView> = new Map();
     private isRunning: boolean = false;
     private lastFrameTime: number = 0;
-    private signalGenModal!: SignalGenModal;
     private webSerialModal!: WebSerialModal;
 
     constructor() {
@@ -42,61 +42,64 @@ export class Oscilloscope {
 
     public async initialize(): Promise<void> {
         const rootElement = document.getElementById('root') || document.body;
-
-        // Apply initial CSS variables for column widths & row heights
         this.settings.applyCSSTemplateVariables();
 
-        // Build HTML Layout
         const layoutElements = Layout.createSkeleton(rootElement);
 
-        // Initialize UI components
         this.table = new Table(layoutElements.rowsContainer);
-        this.toolbar = new Toolbar(
-            layoutElements.toolbarContainer,
-            this.settings,
-            this.recorder,
-            this.serial
-        );
+        this.toolbar = new Toolbar(layoutElements.toolbarContainer, this.settings, this.recorder, this.serial);
         this.toolbar.initialize();
 
         this.resizer = new Resizer(this.settings, layoutElements.headerContainer);
         this.resizer.initialize();
 
-        this.signalGenModal = new SignalGenModal(this.serial);
-        this.signalGenModal.onChannelsLoaded((newChannels) => {
-            this.setChannels(newChannels);
-        });
-
         this.webSerialModal = new WebSerialModal(this.serial);
+        this.iniPanel = new IniPanel(layoutElements.iniPanelContainer);
+        
+        this.bindEvents();
 
-        this.toolbar.onOpenGeneratorModal(() => {
-            this.signalGenModal.open();
-        });
-
-        this.toolbar.onOpenWebSerialModal(() => {
-            this.webSerialModal.open();
-        });
-
-        this.toolbar.onPresetChange((presetId) => {
-            this.loadPreset(presetId);
-        });
-
-        // Listen for export CSV event
-        window.addEventListener('oscilloscope-export-csv', () => {
-            this.recorder.downloadCSV(this.channels);
-        });
-
-        // Load Default Preset (3-Phase Power System)
-        this.loadPreset('3phase_power');
-
-        // Start animation frame update loop
         this.isRunning = true;
         this.lastFrameTime = performance.now();
         requestAnimationFrame((t) => this.loop(t));
     }
 
+    private bindEvents(): void {
+        this.toolbar.onOpenGeneratorModal(() => this.iniPanel.openFilePicker());
+        this.toolbar.onOpenWebSerialModal(() => this.webSerialModal.open());
+
+        this.iniPanel.onFileSelect((fileItem: IniFileItem) => {
+            this.loadIniContent(fileItem.content);
+        });
+
+        window.addEventListener('oscilloscope-export-csv', () => {
+            this.recorder.downloadCSV(this.channels);
+        });
+    }
+
+    public loadIniContent(iniContent: string): void {
+        const parsed = IniParser.parse(iniContent);
+        this.applyParsedRamParams(parsed.ramParams);
+    }
+
+    public applyParsedRamParams(ramParams: ParsedRamParam[]): void {
+        const newChannels = ramParams.map(param => new Channel({
+            id: param.id,
+            name: param.name,
+            description: param.description,
+            unit: param.unit,
+            scale: param.scale,
+            rawDecValue: param.rawDec,
+            hexValue: param.rawHex,
+            isBit: param.isBit,
+            modbusReg: param.modbusReg,
+            min: param.isBit ? 0 : -50,
+            max: param.isBit ? 1 : 500
+        }));
+
+        this.setChannels(newChannels);
+    }
+
     public setChannels(newChannels: Channel[]): void {
-        // Destroy existing Pixi views
         this.pixiViews.forEach(view => view.destroy());
         this.pixiViews.clear();
         this.table.clear();
@@ -105,22 +108,12 @@ export class Oscilloscope {
         this.channels = newChannels;
         this.serial.setChannels(this.channels);
 
-        // Create Channel Rows and initialize PixiView for each graph container
         this.channels.forEach(async (channel) => {
             const row = this.table.addChannel(channel);
-            const graphContainer = row.getGraphContainer();
-
-            const pixiView = new PixiView(graphContainer);
+            const pixiView = new PixiView(row.getGraphContainer());
             await pixiView.init();
-
             this.pixiViews.set(channel.id, pixiView);
         });
-    }
-
-    public loadPreset(presetId: string): void {
-        const preset = DEVICE_PRESETS.find(p => p.id === presetId) || DEVICE_PRESETS[0];
-        const newChannels = preset.channels.map(cfg => new Channel(cfg));
-        this.setChannels(newChannels);
     }
 
     private loop(now: number): void {
@@ -129,27 +122,15 @@ export class Oscilloscope {
         const dtMs = Math.min(100, now - this.lastFrameTime);
         this.lastFrameTime = now;
 
-        // 1. Tick simulation generator if Web Serial is inactive
-        this.serial.tickSimulation(dtMs);
-
-        // 2. Update Table row numeric value labels
         this.table.updateValues();
-
-        // 3. Update Record timer badge in toolbar
         this.toolbar.updateRecordTimer();
 
-        // 4. Render PixiJS signal waveforms
         this.channels.forEach(channel => {
             const view = this.pixiViews.get(channel.id);
-            if (view) {
-                this.renderer.renderChannelGraph(channel, view);
-            }
+            if (view) this.renderer.renderChannelGraph(channel, view);
         });
 
-        // 5. Update Cursors measurements footer if enabled
-        if (this.settings.enableCursors) {
-            this.updateCursorsFooter();
-        }
+        if (this.settings.enableCursors) this.updateCursorsFooter();
 
         requestAnimationFrame((t) => this.loop(t));
     }

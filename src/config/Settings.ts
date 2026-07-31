@@ -15,7 +15,7 @@ export class Settings {
         unit: 60,
     };
 
-    public rowHeight: number = 120; // height in px of each channel row
+    public rowHeight: number = 20; // height in px of each channel row (по умолчанию 20px)
     public timeWindowMs: number = 2000; // total duration visible on screen (ms) (2s default)
     public showGrid: boolean = true;
     public gridDivisionsX: number = 10;
@@ -41,7 +41,7 @@ export class Settings {
     }
 
     public setRowHeight(height: number): void {
-        this.rowHeight = Math.max(50, height);
+        this.rowHeight = Math.max(15, height);
         document.documentElement.style.setProperty('--row-height', `${this.rowHeight}px`);
     }
 

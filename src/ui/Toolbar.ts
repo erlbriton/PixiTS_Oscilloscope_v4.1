@@ -3,7 +3,7 @@
 import { Settings } from '../config/Settings';
 import { Recorder } from '../core/Recorder';
 import { Serial } from '../comm/Serial';
-import { DEVICE_PRESETS } from '../config/DeviceModels';
+import { ToolbarComponents } from './ToolbarComponents';
 
 export class Toolbar {
     private container: HTMLElement;
@@ -13,7 +13,6 @@ export class Toolbar {
 
     private connectBtn!: HTMLButtonElement;
     private baudSelect!: HTMLSelectElement;
-    private presetSelect!: HTMLSelectElement;
     private recordBtn!: HTMLButtonElement;
     private timebaseSelect!: HTMLSelectElement;
     private autoscaleBtn!: HTMLButtonElement;
@@ -22,7 +21,6 @@ export class Toolbar {
     private exportBtn!: HTMLButtonElement;
     private statusBadge!: HTMLSpanElement;
 
-    private onPresetChangeCallback?: (presetId: string) => void;
     private onOpenGeneratorModalCallback?: () => void;
     private onOpenWebSerialModalCallback?: () => void;
 
@@ -38,10 +36,6 @@ export class Toolbar {
         this.serial = serial;
     }
 
-    public onPresetChange(cb: (presetId: string) => void): void {
-        this.onPresetChangeCallback = cb;
-    }
-
     public onOpenGeneratorModal(cb: () => void): void {
         this.onOpenGeneratorModalCallback = cb;
     }
@@ -53,102 +47,54 @@ export class Toolbar {
     public initialize(): void {
         this.container.innerHTML = '';
 
-        // Group 1: Connection & Presets
+        // Group 1: Connection & Brand
         const groupLeft = document.createElement('div');
         groupLeft.className = 'toolbar-group';
 
         const title = document.createElement('div');
         title.className = 'toolbar-title';
-        title.innerHTML = `⚡ PixiTS Oscilloscope`;
+        title.innerHTML = `⚡ PixiTS Oscilloscope v4.1`;
 
-        // Connect Button
-        this.connectBtn = document.createElement('button');
-        this.connectBtn.className = 'toolbar-btn primary';
-        this.connectBtn.innerHTML = `🔌 Web Serial`;
-        this.connectBtn.addEventListener('click', () => this.handleConnectClick());
+        this.connectBtn = ToolbarComponents.createButton('🔌 Web Serial', 'primary', () => this.handleConnectClick());
+        this.baudSelect = ToolbarComponents.createBaudSelect(115200);
 
-        // Baud Select
-        this.baudSelect = document.createElement('select');
-        this.baudSelect.className = 'toolbar-select';
-        [9600, 19200, 38400, 57600, 115200, 230400].forEach(baud => {
-            const opt = document.createElement('option');
-            opt.value = String(baud);
-            opt.textContent = `${baud} Baud`;
-            if (baud === 115200) opt.selected = true;
-            this.baudSelect.appendChild(opt);
-        });
+        groupLeft.append(title, this.connectBtn, this.baudSelect);
 
-        // Device Presets Select
-        this.presetSelect = document.createElement('select');
-        this.presetSelect.className = 'toolbar-select';
-        DEVICE_PRESETS.forEach(preset => {
-            const opt = document.createElement('option');
-            opt.value = preset.id;
-            opt.textContent = `📋 Preset: ${preset.name.split(' ')[0]}`;
-            this.presetSelect.appendChild(opt);
-        });
-        this.presetSelect.addEventListener('change', (e) => {
-            const val = (e.target as HTMLSelectElement).value;
-            if (this.onPresetChangeCallback) this.onPresetChangeCallback(val);
-        });
-
-        groupLeft.append(title, this.connectBtn, this.baudSelect, this.presetSelect);
-
-        // Group 2: Controls (Timebase, Auto-Scale, Cursors, Signal Gen)
+        // Group 2: Controls & INI File Selection
         const groupCenter = document.createElement('div');
         groupCenter.className = 'toolbar-group';
 
-        // Timebase Select
         const timebaseLabel = document.createElement('span');
         timebaseLabel.style.fontSize = '12px';
         timebaseLabel.style.color = '#94a3b8';
         timebaseLabel.textContent = 'Timebase:';
 
-        this.timebaseSelect = document.createElement('select');
-        this.timebaseSelect.className = 'toolbar-select';
-        [
+        const timebaseOpts = [
             { label: '200 ms', val: 200 },
             { label: '500 ms', val: 500 },
             { label: '1.0 sec', val: 1000 },
             { label: '2.0 sec', val: 2000 },
             { label: '5.0 sec', val: 5000 },
             { label: '10 sec', val: 10000 }
-        ].forEach(t => {
-            const opt = document.createElement('option');
-            opt.value = String(t.val);
-            opt.textContent = t.label;
-            if (t.val === this.settings.timeWindowMs) opt.selected = true;
-            this.timebaseSelect.appendChild(opt);
-        });
-        this.timebaseSelect.addEventListener('change', (e) => {
-            this.settings.timeWindowMs = parseInt((e.target as HTMLSelectElement).value, 10);
+        ];
+
+        this.timebaseSelect = ToolbarComponents.createSelect(timebaseOpts, this.settings.timeWindowMs, (val) => {
+            this.settings.timeWindowMs = val;
         });
 
-        // Autoscale Toggle
-        this.autoscaleBtn = document.createElement('button');
-        this.autoscaleBtn.className = `toolbar-btn ${this.settings.autoScale ? 'active' : ''}`;
-        this.autoscaleBtn.innerHTML = `📐 Auto-Scale`;
-        this.autoscaleBtn.addEventListener('click', () => {
+        this.autoscaleBtn = ToolbarComponents.createButton('📐 Auto-Scale', this.settings.autoScale ? 'active' : '', () => {
             this.settings.autoScale = !this.settings.autoScale;
             this.autoscaleBtn.classList.toggle('active', this.settings.autoScale);
         });
 
-        // Cursors Toggle
-        this.cursorBtn = document.createElement('button');
-        this.cursorBtn.className = `toolbar-btn ${this.settings.enableCursors ? 'active' : ''}`;
-        this.cursorBtn.innerHTML = `📏 Cursors`;
-        this.cursorBtn.addEventListener('click', () => {
+        this.cursorBtn = ToolbarComponents.createButton('📏 Cursors', this.settings.enableCursors ? 'active' : '', () => {
             this.settings.enableCursors = !this.settings.enableCursors;
             this.cursorBtn.classList.toggle('active', this.settings.enableCursors);
             const footer = document.getElementById('footer');
             if (footer) footer.style.display = this.settings.enableCursors ? 'flex' : 'none';
         });
 
-        // Signal Gen Controls Button
-        this.generatorBtn = document.createElement('button');
-        this.generatorBtn.className = 'toolbar-btn';
-        this.generatorBtn.innerHTML = `🌊 Signal Gen`;
-        this.generatorBtn.addEventListener('click', () => {
+        this.generatorBtn = ToolbarComponents.createButton('📁 Выбрать .ini файлы', 'primary', () => {
             if (this.onOpenGeneratorModalCallback) this.onOpenGeneratorModalCallback();
         });
 
@@ -158,35 +104,27 @@ export class Toolbar {
         const groupRight = document.createElement('div');
         groupRight.className = 'toolbar-group';
 
-        this.recordBtn = document.createElement('button');
-        this.recordBtn.className = 'toolbar-btn success';
-        this.recordBtn.innerHTML = `🔴 Record`;
-        this.recordBtn.addEventListener('click', () => this.handleRecordClick());
-
-        this.exportBtn = document.createElement('button');
-        this.exportBtn.className = 'toolbar-btn';
-        this.exportBtn.innerHTML = `💾 Export CSV`;
-        this.exportBtn.addEventListener('click', () => {
+        this.recordBtn = ToolbarComponents.createButton('🔴 Record', 'success', () => this.handleRecordClick());
+        this.exportBtn = ToolbarComponents.createButton('💾 Export CSV', '', () => {
             window.dispatchEvent(new CustomEvent('oscilloscope-export-csv'));
         });
 
         this.statusBadge = document.createElement('span');
-        this.statusBadge.className = 'status-badge simulating';
-        this.statusBadge.textContent = 'SIMULATOR ACTIVE';
+        this.statusBadge.className = 'status-badge disconnected';
+        this.statusBadge.textContent = 'DISCONNECTED';
 
         groupRight.append(this.recordBtn, this.exportBtn, this.statusBadge);
 
         this.container.append(groupLeft, groupCenter, groupRight);
 
-        // Listen for serial state changes
-        this.serial.onStateChange((state, msg) => {
+        this.serial.onStateChange((state) => {
             if (state === 'connected') {
                 this.statusBadge.className = 'status-badge connected';
                 this.statusBadge.textContent = 'SERIAL CONNECTED';
                 this.connectBtn.innerHTML = `🔌 Disconnect`;
-            } else if (state === 'simulating') {
-                this.statusBadge.className = 'status-badge simulating';
-                this.statusBadge.textContent = 'SIMULATOR ACTIVE';
+            } else {
+                this.statusBadge.className = 'status-badge disconnected';
+                this.statusBadge.textContent = 'DISCONNECTED';
                 this.connectBtn.innerHTML = `🔌 Web Serial`;
             }
         });
@@ -225,8 +163,8 @@ export class Toolbar {
             this.recordBtn.innerHTML = `🔴 Record`;
             this.recordBtn.classList.remove('primary');
             this.recordBtn.classList.add('success');
-            this.statusBadge.className = this.serial.getState() === 'connected' ? 'status-badge connected' : 'status-badge simulating';
-            this.statusBadge.textContent = this.serial.getState() === 'connected' ? 'SERIAL CONNECTED' : 'SIMULATOR ACTIVE';
+            this.statusBadge.className = this.serial.getState() === 'connected' ? 'status-badge connected' : 'status-badge disconnected';
+            this.statusBadge.textContent = this.serial.getState() === 'connected' ? 'SERIAL CONNECTED' : 'DISCONNECTED';
         }
     }
 

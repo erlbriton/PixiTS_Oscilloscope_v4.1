@@ -43,13 +43,26 @@ export class ChannelRingBuffer {
 
         const result: Sample[] = [];
         const startIndex = (this.head - this.size + this.capacity) % this.capacity;
+        let addedPrevious = false;
 
         for (let i = 0; i < this.size; i++) {
             const idx = (startIndex + i) % this.capacity;
             const t = this.timestamps[idx];
             if (t >= minTime) {
+                if (!addedPrevious) {
+                    if (i > 0) {
+                        const prevIdx = (startIndex + i - 1 + this.capacity) % this.capacity;
+                        result.push({ time: this.timestamps[prevIdx], value: this.values[prevIdx] });
+                    }
+                    addedPrevious = true;
+                }
                 result.push({ time: t, value: this.values[idx] });
             }
+        }
+
+        if (result.length === 0 && this.size > 0) {
+            const lastIdx = (this.head - 1 + this.capacity) % this.capacity;
+            result.push({ time: this.timestamps[lastIdx], value: this.values[lastIdx] });
         }
 
         return result;

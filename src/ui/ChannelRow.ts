@@ -5,7 +5,7 @@ import { Channel } from '../core/Channel';
 export class ChannelRow {
     private readonly element: HTMLDivElement;
     private readonly nameElement: HTMLDivElement;
-    private readonly descriptionElement: HTMLDivElement;
+    private readonly hexElement: HTMLDivElement;
     private readonly valueElement: HTMLDivElement;
     private readonly unitElement: HTMLDivElement;
     private readonly graphElement: HTMLDivElement;
@@ -16,7 +16,7 @@ export class ChannelRow {
         this.element.className = 'channel-row';
         this.element.dataset.channelId = channel.id;
 
-        // Name Column
+        // 1. Колонка Имя (Name)
         this.nameElement = document.createElement('div');
         this.nameElement.className = 'col-name';
 
@@ -27,35 +27,48 @@ export class ChannelRow {
         const titleSpan = document.createElement('span');
         titleSpan.className = 'channel-title';
         titleSpan.textContent = channel.name;
+        titleSpan.title = `${channel.name} (${channel.description})`;
 
         this.nameElement.append(this.colorIndicator, titleSpan);
 
-        // Description Column
-        this.descriptionElement = document.createElement('div');
-        this.descriptionElement.className = 'col-description';
-        this.descriptionElement.textContent = channel.description;
+        // 2. Колонка HEX значение (hex)
+        this.hexElement = document.createElement('div');
+        this.hexElement.className = 'col-description'; // Используем существующий CSS класс разметки
+        this.hexElement.textContent = channel.hexValue;
+        this.hexElement.style.fontFamily = 'monospace';
+        this.hexElement.style.color = '#38bdf8';
 
-        // Value Column
+        // 3. Колонка Десятичное значение * Шкала (Value)
         this.valueElement = document.createElement('div');
         this.valueElement.className = 'col-value';
-        this.valueElement.textContent = String(channel.value);
+        this.valueElement.textContent = String(channel.scaledValue);
 
-        // Unit Column
+        // 4. Колонка Единица измерения (Unit)
         this.unitElement = document.createElement('div');
         this.unitElement.className = 'col-unit';
         this.unitElement.textContent = channel.unit;
 
-        // PixiJS Canvas Graph Column
+        // 5. Колонка Графика PixiJS (Graph)
         this.graphElement = document.createElement('div');
         this.graphElement.className = 'col-graph';
 
         this.element.append(
             this.nameElement,
-            this.descriptionElement,
+            this.hexElement,
             this.valueElement,
             this.unitElement,
             this.graphElement
         );
+
+        this.element.addEventListener('click', () => {
+            const container = this.element.parentElement;
+            if (container) {
+                container.querySelectorAll('.channel-row.selected').forEach(el => {
+                    if (el !== this.element) el.classList.remove('selected');
+                });
+            }
+            this.element.classList.add('selected');
+        });
     }
 
     public attach(parent: HTMLElement): void {
@@ -69,9 +82,13 @@ export class ChannelRow {
     }
 
     public updateValue(): void {
-        const val = this.channel.value;
+        // Обновляем HEX значение во 2-й колонке
+        this.hexElement.textContent = this.channel.hexValue;
+
+        // Обновляем Десятичное значение * Шкала в 3-й колонке
+        const val = this.channel.scaledValue;
         if (typeof val === 'number') {
-            this.valueElement.textContent = val % 1 === 0 ? val.toString() : val.toFixed(2);
+            this.valueElement.textContent = Number.isInteger(val) ? val.toString() : val.toFixed(3);
         } else {
             this.valueElement.textContent = String(val);
         }
