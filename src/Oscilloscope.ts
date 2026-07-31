@@ -67,6 +67,20 @@ export class Oscilloscope {
         this.toolbar.onOpenGeneratorModal(() => this.iniPanel.openFilePicker());
         this.toolbar.onOpenWebSerialModal(() => this.webSerialModal.open());
 
+        this.serial.onStateChange((state, msg) => {
+            if (state === 'error') {
+                this.isRunning = false;
+                this.showConnectionError(msg || 'Связь с устройством потеряна.');
+            } else if (state === 'connected') {
+                const wasRunning = this.isRunning;
+                this.isRunning = true;
+                this.lastFrameTime = performance.now();
+                if (!wasRunning) {
+                    requestAnimationFrame((t) => this.loop(t));
+                }
+            }
+        });
+
         this.iniPanel.onFileSelect((fileItem: IniFileItem) => {
             this.loadIniContent(fileItem.content);
         });
@@ -82,20 +96,31 @@ export class Oscilloscope {
     }
 
     public async applyParsedRamParams(ramParams: ParsedRamParam[]): Promise<void> {
-        const newChannels = ramParams.map(param => new Channel({
-            id: param.id,
-            name: param.name,
-            description: param.description,
-            dataType: param.type,
-            unit: param.unit,
-            scale: param.scale,
-            rawDecValue: param.rawDec,
-            hexValue: param.rawHex,
-            isBit: param.isBit,
-            modbusReg: param.modbusReg,
-            min: param.isBit ? 0 : -50,
-            max: param.isBit ? 1 : 500
-        }));
+        let bitIndex = 0;
+        const newChannels = ramParams.map(param => {
+            let color: string | undefined;
+            if (param.isBit) {
+                // Чередуем: голубой (#00d2ff) и светло-коричневый (#d2a679)
+                color = (bitIndex % 2 === 0) ? '#00d2ff' : '#d2a679';
+                bitIndex++;
+            }
+
+            return new Channel({
+                id: param.id,
+                name: param.name,
+                description: param.description,
+                dataType: param.type,
+                unit: param.unit,
+                scale: param.scale,
+                rawDecValue: param.rawDec,
+                hexValue: param.rawHex,
+                isBit: param.isBit,
+                modbusReg: param.modbusReg,
+                min: param.isBit ? 0 : -50,
+                max: param.isBit ? 1 : 500,
+                color: color
+            });
+        });
 
         await this.setChannels(newChannels);
     }
@@ -173,5 +198,48 @@ export class Oscilloscope {
             curDt.textContent = `${dtMs.toFixed(1)} ms`;
             curFreq.textContent = `${freqHz} Hz`;
         }
+    }
+
+    private showConnectionError(message: string): void {
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.zIndex = '9999';
+        overlay.style.backdropFilter = 'blur(4px)';
+
+        const modal = document.createElement('div');
+        modal.className = 'modal-content';
+        modal.style.maxWidth = '400px';
+        modal.style.padding = '30px';
+        modal.style.textAlign = 'center';
+        modal.style.border = '1px solid #ff4d4d';
+        modal.style.boxShadow = '0 0 20px rgba(255, 77, 77, 0.2)';
+
+        modal.innerHTML = `
+            <div style="color: #ff4d4d; font-size: 48px; margin-bottom: 20px;">
+                <i class="lucide-octagon-alert"></i>
+            </div>
+            <h2 style="margin-bottom: 15px; color: #fff;">Обрыв связи</h2>
+            <p style="color: #ccc; line-height: 1.5; margin-bottom: 25px;">${message}</p>
+            <button id="reconnect-btn" class="toolbar-btn primary" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #ff4d4d 0%, #b30000 100%);">
+                Подключиться снова
+            </button>
+        `;
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        const btn = modal.querySelector('#reconnect-btn');
+        btn?.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            this.webSerialModal.open();
+        });
     }
 }

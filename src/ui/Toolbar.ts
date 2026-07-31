@@ -122,6 +122,10 @@ export class Toolbar {
                 this.statusBadge.className = 'status-badge connected';
                 this.statusBadge.textContent = 'SERIAL CONNECTED';
                 this.connectBtn.innerHTML = `🔌 Disconnect`;
+            } else if (state === 'error') {
+                this.statusBadge.className = 'status-badge disconnected';
+                this.statusBadge.textContent = 'ERROR';
+                this.connectBtn.innerHTML = `🔌 Web Serial`;
             } else {
                 this.statusBadge.className = 'status-badge disconnected';
                 this.statusBadge.textContent = 'DISCONNECTED';

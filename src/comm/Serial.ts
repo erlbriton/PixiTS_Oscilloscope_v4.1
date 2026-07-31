@@ -17,6 +17,9 @@ export class Serial {
     private rxBuffer: number[] = [];
     private asciiTextBuffer: string = '';
     private pollIntervalId: number | null = null;
+    private lastResponseTime: number = 0;
+    private hasReceivedData: boolean = false;
+    private readonly TIMEOUT_MS: number = 2000;
 
     constructor(archive: Archive) {
         this.archive = archive;
@@ -57,6 +60,8 @@ export class Serial {
             await this.port.open({ baudRate: this.baudRate });
 
             this.setState('connected', `Подключено к COM-порту @ ${this.baudRate} baud`);
+            this.lastResponseTime = Date.now();
+            this.hasReceivedData = false;
             this.startReading();
             this.startModbusPolling();
             return true;
@@ -83,14 +88,24 @@ export class Serial {
             console.error('Error closing serial port:', e);
         }
         this.setState('disconnected', 'Serial port disconnected.');
+        this.hasReceivedData = false;
     }
 
     private startModbusPolling(): void {
         this.stopModbusPolling();
         // Send Modbus FC 0x03 poll request every 100ms
         this.pollIntervalId = window.setInterval(() => {
-            if (this.state === 'connected' && this.channels.length > 0) {
-                this.sendModbus03Request();
+            if (this.state === 'connected') {
+                // Проверка тайм-аута только если данные уже начали поступать
+                if (this.hasReceivedData && (Date.now() - this.lastResponseTime > this.TIMEOUT_MS)) {
+                    this.setState('error', 'Связь потеряна: тайм-аут ответа от устройства.');
+                    this.disconnect();
+                    return;
+                }
+
+                if (this.channels.length > 0) {
+                    this.sendModbus03Request();
+                }
             }
         }, 100);
     }
@@ -158,6 +173,8 @@ export class Serial {
 
     private processIncomingBytes(data: Uint8Array): void {
         const now = Date.now();
+        this.lastResponseTime = now;
+        this.hasReceivedData = true;
         const textChunk = new TextDecoder().decode(data);
         this.asciiTextBuffer += textChunk;
 
